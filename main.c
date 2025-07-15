@@ -7,6 +7,8 @@ struct termios orig_termios;
 
 void disable_raw_mode(){
     tcsetattr(STDIN_FILENO, TCSAFLUSH, &orig_termios);
+    printf("\x1b[?1049l");
+      fflush(stdout);
 }
 
 void enable_raw_mode()
@@ -16,12 +18,20 @@ void enable_raw_mode()
     atexit(disable_raw_mode);
     raw.c_lflag &= ~(ICANON | ECHO | ISIG);
     tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw);
+    printf("\x1b[?1049h");
+      fflush(stdout);
 }
 
-
+void clear_screen() {
+    printf("\x1b[2J");
+    printf("\x1b[H");
+    fflush(stdout);
+}
 int main(){
-    printf("hello world!\n");
     enable_raw_mode();
+    clear_screen();
+
+
     char c;
 
     while(1){
@@ -31,13 +41,13 @@ int main(){
     }
         printf("%c",c);
         fflush(stdout);
-        if (c == 27){
+        if (c == 3){
             break;
         }
 
     }
     char cee = 'c';
     int decimal = cee & 0x1F;
-    printf("%d",decimal);
+    printf("%d\n",decimal);
     return 0;
 }
