@@ -1,1 +1,0 @@
-I will be weiting some notes here about what am building
