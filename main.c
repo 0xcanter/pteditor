@@ -16,6 +16,29 @@ void disable_raw_mode(void){
     fflush(stdout);
 }
 
+char *readfile(const char *filename){
+    FILE *file = fopen(filename, "r");
+    if(!file){
+        perror("could not open file");
+        return NULL;
+    }
+    fseek(file, 0, SEEK_END);
+    long size = ftell(file);
+    rewind(file);
+
+    char *buffer = malloc(size+1);
+    if (!buffer){
+        perror("Memory allocation failed!");
+        fclose(file);
+        return NULL;
+    }
+    fread(buffer, 1, size , file);
+    buffer[size] = '\0';
+    fclose(file);
+
+    return buffer;
+}
+
 void enable_raw_mode(void)
 {
     /* get the terminal settings and save it in the orig_termios */
@@ -28,13 +51,13 @@ void enable_raw_mode(void)
        disabling ISTRIP which will make the program to keep the full 8 bit charcters
        disabling ICRNL prevent the terminal from converting \r to \n when a return key is pressed
        disabling IXON prevent CTRL S AND  CTRL Q from pausing and resuming the terminal */
-    raw.c_iflag &= ~(BRKINT | ICRNL | IXON | ISTRIP );
+    raw.c_iflag &= ~(BRKINT | ICRNL | INPCK | IXON | ISTRIP );
 
                               // c_lflag DISABLE keywords
     /* disabling ICANON will give you full manual control over user input
        disabling ECHO prevents the terminal from echoing back user input
        disabling ISIG suspends ^C and ^Z from suspending or killing the program */
-    raw.c_lflag &= ~(ICANON | ECHO | ISIG);
+    raw.c_lflag &= ~(ICANON | ECHO | IEXTEN | ISIG);
 
                             // c_oflag DISABLE keywords
     /* disabling OPOST this prevents the terminal trigering \r\n when the return key is pressed...it just send input as it is */
@@ -56,10 +79,23 @@ void clear_screen(void) {
     printf("\x1b[H");
     fflush(stdout);
 }
+
+void write_to_file(const char *filename,const char *value){
+    FILE *file = fopen(filename, "w");
+    if (!file){
+        perror("could not open file");
+        return;
+    }
+    fputs(value, file);
+    fclose(file);
+}
+
 int main(void){
     enable_raw_mode();
     clear_screen();
     char c;
+    printf("1");
+    fflush(stdout);
     while(1){
         if(read(STDIN_FILENO, &c, 1) == -1&&errno != EAGAIN ){
             perror("read");
@@ -72,6 +108,14 @@ int main(void){
         if (c == 3){
                 break;
         }
+
+        if (c == '\r'){
+            printf("\n%d",2);
+            fflush(stdout);
+        }
     }
+    char *d = readfile("test.txt");
+    write_to_file("tender.txt",d);
+    free(d);
     return 0;
 }
