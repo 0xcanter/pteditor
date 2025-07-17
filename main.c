@@ -5,7 +5,7 @@
 #include <unistd.h>
 struct termios orig_termios;
 
-void disable_raw_mode(){
+void disable_raw_mode(void){
     /* clear previous user input and set to previous terminal default settings */
     tcsetattr(STDIN_FILENO, TCSAFLUSH, &orig_termios);
     /* exit alternate screen */
@@ -16,38 +16,50 @@ void disable_raw_mode(){
     fflush(stdout);
 }
 
-void enable_raw_mode()
+void enable_raw_mode(void)
 {
     /* get the terminal settings and save it in the orig_termios */
     tcgetattr(STDIN_FILENO, &orig_termios);
     struct termios raw = orig_termios;
     /* if the program terminates or end then disable raw mode and go back to original terminal settings */
     atexit(disable_raw_mode);
-
-    /* disabling BRKINT which will make the program not to terminate if a break is triggered */
-    /* disabling ISTRIP which will make the program to keep the full 8 bit charcters  */
-    /* disabling ICRNL which will make the terminal not to do anything when \n or \r */
+                               // c_iflag DISABLE keywords
+    /* disabling BRKINT  which will make the program not to terminate if a break is triggered
+       disabling ISTRIP which will make the program to keep the full 8 bit charcters
+       disabling ICRNL prevent the terminal from converting \r to \n when a return key is pressed
+       disabling IXON prevent CTRL S AND  CTRL Q from pausing and resuming the terminal */
     raw.c_iflag &= ~(BRKINT | ICRNL | IXON | ISTRIP );
+
+                              // c_lflag DISABLE keywords
+    /* disabling ICANON will give you full manual control over user input
+       disabling ECHO prevents the terminal from echoing back user input
+       disabling ISIG suspends ^C and ^Z from suspending or killing the program */
     raw.c_lflag &= ~(ICANON | ECHO | ISIG);
+
+                            // c_oflag DISABLE keywords
+    /* disabling OPOST this prevents the terminal trigering \r\n when the return key is pressed...it just send input as it is */
     raw.c_oflag &= ~OPOST;
+
+                            // c_cflag ENABLE keyword
+    /* enabling  CS8 sets character site to 8bit per byte*/
     raw.c_cflag |= (CS8);
+
+    // set the new terminal settings and  printing the ansii charcters to create alternate screen
     tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw);
     printf("\x1b[?1049h");
       fflush(stdout);
 }
 
-void clear_screen() {
+/* the clear screen function */
+void clear_screen(void) {
     printf("\x1b[2J");
     printf("\x1b[H");
     fflush(stdout);
 }
-int main(){
-
+int main(void){
     enable_raw_mode();
     clear_screen();
-
     char c;
-
     while(1){
         if(read(STDIN_FILENO, &c, 1) == -1&&errno != EAGAIN ){
             perror("read");
@@ -56,12 +68,10 @@ int main(){
         printf("%c",c);
         fflush(stdout);
 
-        //exit with ctrl C
+        //exit with ctrl C which sends ASCII 3 (ETX), used here to manually exit since ISIG is disabled
         if (c == 3){
                 break;
         }
     }
-
-
     return 0;
 }
