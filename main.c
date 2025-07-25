@@ -1,19 +1,110 @@
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <termios.h>
 #include <unistd.h>
 struct termios orig_termios;
+
+typedef int ReturnCode ;
+typedef int Position;
+typedef unsigned char Item;
+
+typedef struct {
+    Item *data;
+    int length;
+    int capacity;
+} Sequence;
+
+Sequence empty(){
+    Sequence s ;
+    s.capacity = 8;
+    s.length = 0;
+    s.data = malloc(s.capacity * sizeof(Item));
+    if (!s.data){
+        perror("memory reallocation failed");
+        s.capacity = 0;
+    }
+    return s;
+}
+
+ReturnCode insert(Sequence *sequence,Position position,Item *ch){
+    if(position > sequence->length ||position < 0) return -1;
+    if(!sequence->data)return -1;
+    if (sequence->capacity == sequence->length){
+        sequence->capacity *= 2;
+        sequence->data = realloc(sequence->data, sequence->capacity * sizeof(Item));
+        if(!sequence->data){
+            perror("memory reallocation failed");
+            return -1;
+        }
+    }
+    for(int i = sequence->length;i > position;i--){
+        sequence->data[i] = sequence->data[i - 1];
+    }
+    sequence->data[position] = *ch;
+    sequence->length++;
+    sequence->data[sequence->length] = '\0';
+    return 1;
+}
+
+ReturnCode delete_at(Sequence *sequence,Position position){
+    if(position >= sequence->length || position < 0) return -1;
+    if(!sequence->data)return -1;
+    for(int i = position;i < sequence->length - 1; i++){
+        sequence->data[i] = sequence->data[i+1];
+    }
+    sequence->length--;
+    sequence->data[sequence->length] = '\0';
+    return 1;
+}
+
+
+ReturnCode itemAt(Sequence *sequence,Position position,Item *out){
+    if(!sequence || !sequence->data || position < 0 || position >= sequence->length) return -1;
+    *out = sequence->data[position];
+    return 1;
+}
+
+
+ReturnCode load_file(Sequence *sequence,const char *filename){
+    FILE *f = fopen(filename, "r");
+    if(!f){
+        perror("Could not open file!");
+        return -1;
+    }
+
+    int c;
+    while((c = fgetc(f)) != EOF){
+        Item ch = (unsigned char)c;
+        if (insert(sequence, sequence->length, &ch) == -1){
+            fclose(f);
+            return -1;
+        }
+    }
+    fclose(f);
+    return 1;
+}
+
+ReturnCode close_sequence(Sequence *sequence){
+    if (!sequence)return -1;
+    if (sequence->data){
+        free(sequence->data);
+        sequence->data = NULL;
+    }
+    sequence->length = 0;
+    sequence->capacity =  0;
+    return 1;
+}
+
 
 void disable_raw_mode(void){
     /* clear previous user input and set to previous terminal default settings */
     tcsetattr(STDIN_FILENO, TCSAFLUSH, &orig_termios);
     /* exit alternate screen */
-    printf("\x1b[?1049l");
+    write(STDOUT_FILENO,"\x1b[?1049l" , 8);
     /* write out everything in the buffer still waiting to be printed in the terminal */
-      fflush(stdout);
-    printf("end\n");
-    fflush(stdout);
+
 }
 
 char *readfile(const char *filename){
@@ -69,15 +160,14 @@ void enable_raw_mode(void)
 
     // set the new terminal settings and  printing the ansii charcters to create alternate screen
     tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw);
-    printf("\x1b[?1049h");
-      fflush(stdout);
+    write(STDOUT_FILENO, "\x1b[?1049h", 8);
+
 }
 
 /* the clear screen function */
 void clear_screen(void) {
-    printf("\x1b[2J");
-    printf("\x1b[H");
-    fflush(stdout);
+    write(STDOUT_FILENO, "\x1b[2J", 4);
+    write(STDOUT_FILENO, "\x1b[H", 3);
 }
 
 void write_to_file(const char *filename,const char *value){
@@ -90,32 +180,117 @@ void write_to_file(const char *filename,const char *value){
     fclose(file);
 }
 
+enum {
+    ESC = 27,
+    ARROW_LEFT = 1000,
+    ARROW_UP,
+    ARROW_RIGHT,
+    ARROW_DOWN,
+    DEL,
+    PAGE_UP,
+    PAGE_DOWN,
+};
+
+void get_cursor_position(int *rows,int *cols){
+    // get cursor position
+    write(STDOUT_FILENO, "\x1b[6n", 4);
+    char buff[32];
+    int i = 0;
+
+    while(i < sizeof(buff) - 1){
+        if(read(STDIN_FILENO,&buff[i], 1) != 1) break;
+        if(buff[i] == 'R')break;
+        i++;
+    }
+    buff[i] = '\0';
+    if(buff[0] == '\x1b' && buff[1] == '['){
+        sscanf(&buff[2], "%d;%d", rows,cols);
+    }
+}
+
+int read_key(int fd){
+    char c,seq[3];
+    int nread;
+    nread = read(fd,&c, 1);
+    if(nread == -1) exit(1);
+
+        switch (c) {
+            case ESC:
+                if(read(fd, seq, 1) == 0)return ESC;
+                if(read(fd,seq+1,1) == 0)return ESC;
+
+                if(seq[0] == '['){
+                    if(seq[1] >= 0 && seq[1] <= 9){
+
+                        if(read(fd, seq+2, 1) == 0)return ESC;
+                            if(seq[2] == '~'){
+                            switch (seq[1]) {
+                                    case '3': return DEL;
+                                    case '5': return PAGE_UP;
+                                    case '6': return PAGE_DOWN;
+                             }
+                        }
+                    }else{
+                        switch (seq[1]) {
+                            case 'A': return ARROW_UP;
+                            case 'B': return ARROW_DOWN;
+                            case 'C': return ARROW_RIGHT;
+                            case 'D': return ARROW_LEFT;
+                        }
+                    }
+                }
+                break;
+            default:
+                return c;
+        }
+        return c;
+}
+
+
+struct Point{
+    int x;
+    int y;
+};
+
+void move_cursor(struct Point *p ,int dx,int dy){
+    get_cursor_position(&p->x,&p->y);
+    p->x += dx;
+    p->y += dy;
+        char seq[32];
+        snprintf(seq, sizeof(seq), "\x1b[%d;%dH", p->y,p->x);
+        write(STDOUT_FILENO, seq, strlen(seq));
+}
+
 int main(void){
+    struct Point p = {1,1};
     enable_raw_mode();
     clear_screen();
-    char c;
-    printf("1");
-    fflush(stdout);
+    write(STDOUT_FILENO, "\x1b[1;1H", 6);
     while(1){
-        if(read(STDIN_FILENO, &c, 1) == -1&&errno != EAGAIN ){
-            perror("read");
-            exit(1);
-        }
-        printf("%c",c);
-        fflush(stdout);
-
-        //exit with ctrl C which sends ASCII 3 (ETX), used here to manually exit since ISIG is disabled
-        if (c == 3){
+        int c = read_key(STDIN_FILENO);
+        switch (c) {
+            case ARROW_UP:
+                move_cursor(&p, p.x, p.y+1);
                 break;
-        }
+            case '\x1b':
+                return 1;
 
-        if (c == '\r'){
-            printf("\n%d",2);
-            fflush(stdout);
         }
+        write(STDOUT_FILENO, &c, 1);
+
+        // //exit with ctrl C which sends ASCII 3 (ETX), used here to manually exit since ISIG is disabled
+        // if (c == 27){
+        //         break;
+        // }
+
+        // if (c == '\r'){
+        //     write(STDOUT_FILENO, "\n",1);
+        // }
     }
     char *d = readfile("test.txt");
-    write_to_file("tender.txt",d);
-    free(d);
+    if (d){
+        write_to_file("tender.txt",d);
+        free(d);
+    }
     return 0;
 }
