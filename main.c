@@ -220,7 +220,7 @@ int read_key(int fd){
                 if(read(fd,seq+1,1) == 0)return ESC;
 
                 if(seq[0] == '['){
-                    if(seq[1] >= 0 && seq[1] <= 9){
+                    if(seq[1] >= '0' && seq[1] <= '9'){
 
                         if(read(fd, seq+2, 1) == 0)return ESC;
                             if(seq[2] == '~'){
@@ -253,7 +253,6 @@ struct Point{
 };
 
 void move_cursor(struct Point *p ,int dx,int dy){
-    get_cursor_position(&p->x,&p->y);
     p->x += dx;
     p->y += dy;
         char seq[32];
@@ -269,14 +268,30 @@ int main(void){
     while(1){
         int c = read_key(STDIN_FILENO);
         switch (c) {
-            case ARROW_UP:
-                move_cursor(&p, p.x, p.y+1);
+            case ARROW_DOWN:
+                if(p.y < 1)p.y = 1;
+                move_cursor(&p,0 , 1);
                 break;
-            case '\x1b':
+            case ARROW_UP:
+                if(p.y < 1)p.y = 1;
+                move_cursor(&p, 0, -1);
+                break;
+            case ARROW_LEFT:
+                if(p.x < 1)p.x = 1;
+                move_cursor(&p, -1, 0);
+                break;
+            case ARROW_RIGHT:
+                if(p.x < 1)p.x = 1;
+                move_cursor(&p, 1, 0);
+                break;
+            case ESC:
                 return 1;
+                break;
+
 
         }
-        write(STDOUT_FILENO, &c, 1);
+        if (c >= 32 && c <= 126)
+            write(STDOUT_FILENO, &c, 1);
 
         // //exit with ctrl C which sends ASCII 3 (ETX), used here to manually exit since ISIG is disabled
         // if (c == 27){
