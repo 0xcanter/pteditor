@@ -1,8 +1,9 @@
-#include <errno.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <termios.h>
+#include <time.h>
 #include <unistd.h>
 struct termios orig_termios;
 
@@ -31,13 +32,17 @@ Sequence empty(){
 ReturnCode insert(Sequence *sequence,Position position,Item *ch){
     if(position > sequence->length ||position < 0) return -1;
     if(!sequence->data)return -1;
-    if (sequence->capacity == sequence->length){
-        sequence->capacity *= 2;
-        sequence->data = realloc(sequence->data, sequence->capacity * sizeof(Item));
-        if(!sequence->data){
+    if (sequence->capacity <= sequence->length+1){
+
+        size_t new_capacity = sequence->capacity == 0 ? 2 : (sequence->capacity*2) + 1;
+
+        void *tmp = realloc(sequence->data, new_capacity * sizeof(Item));
+        if(!tmp){
             perror("memory reallocation failed");
             return -1;
         }
+        sequence->data = tmp;
+        sequence->capacity = new_capacity;
     }
     for(int i = sequence->length;i > position;i--){
         sequence->data[i] = sequence->data[i - 1];
@@ -159,6 +164,8 @@ void enable_raw_mode(void)
     raw.c_cflag |= (CS8);
 
     // set the new terminal settings and  printing the ansii charcters to create alternate screen
+    raw.c_cc[VMIN] = 0;
+    raw.c_cc[VTIME] = 1;
     tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw);
     write(STDOUT_FILENO, "\x1b[?1049h", 8);
 
@@ -170,17 +177,18 @@ void clear_screen(void) {
     write(STDOUT_FILENO, "\x1b[H", 3);
 }
 
-void write_to_file(const char *filename,const char *value){
+void write_to_file(const char *filename,Sequence *s){
     FILE *file = fopen(filename, "w");
     if (!file){
         perror("could not open file");
         return;
     }
-    fputs(value, file);
+    fwrite(s->data,1 , s->length, file);
     fclose(file);
 }
 
 enum {
+    BACKSPACE = 127,
     ESC = 27,
     ARROW_LEFT = 1000,
     ARROW_UP,
@@ -211,11 +219,15 @@ void get_cursor_position(int *rows,int *cols){
 int read_key(int fd){
     char c,seq[3];
     int nread;
-    nread = read(fd,&c, 1);
-    if(nread == -1) exit(1);
+    while ((nread = read(fd,&c,1)) == 0);
+    if (nread == -1) return ESC;
 
         switch (c) {
+            case BACKSPACE:
+                return BACKSPACE;
+                break;
             case ESC:
+
                 if(read(fd, seq, 1) == 0)return ESC;
                 if(read(fd,seq+1,1) == 0)return ESC;
 
@@ -261,7 +273,9 @@ void move_cursor(struct Point *p ,int dx,int dy){
 }
 
 int main(void){
+    Sequence s = empty();
     struct Point p = {1,1};
+    // static int cursor_index = 0;
     enable_raw_mode();
     clear_screen();
     write(STDOUT_FILENO, "\x1b[1;1H", 6);
@@ -285,13 +299,31 @@ int main(void){
                 move_cursor(&p, 1, 0);
                 break;
             case ESC:
+                write_to_file("tender.txt", &s);
+                close_sequence(&s);
+                return 1;
+                break;
+            case BACKSPACE:
+
+                delete_at(&s, p.x-1);
+                write(STDOUT_FILENO, "\r\033[K", 4);
+                write(STDOUT_FILENO, s.data, s.length);
+                move_cursor(&p, -1,0);
+
+                break;
+            case DEL:
                 return 1;
                 break;
 
+        }
+        if (c >= 32 && c <= 126){
+            unsigned char ch = (unsigned char )c;
+            insert(&s, p.x - 1, &ch);
+            write(STDOUT_FILENO, "\r\033[K", 4);
+            write(STDOUT_FILENO, s.data, s.length);
+            move_cursor(&p, 1, 0);
 
         }
-        if (c >= 32 && c <= 126)
-            write(STDOUT_FILENO, &c, 1);
 
         // //exit with ctrl C which sends ASCII 3 (ETX), used here to manually exit since ISIG is disabled
         // if (c == 27){
@@ -302,10 +334,11 @@ int main(void){
         //     write(STDOUT_FILENO, "\n",1);
         // }
     }
-    char *d = readfile("test.txt");
-    if (d){
-        write_to_file("tender.txt",d);
-        free(d);
-    }
+
+    // char *d = readfile("test.txt");
+    // if (d){
+    //     write_to_file("tender.txt",s.data);
+    //     free(d);
+    // }
     return 0;
 }
