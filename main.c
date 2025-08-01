@@ -296,7 +296,19 @@ int main(void){
                 break;
             case ARROW_RIGHT:
                 if(p.x < 1)p.x = 1;
-                move_cursor(&p, 1, 0);
+                if(s.length+1 == p.x){
+                    move_cursor(&p, 0, 1);
+                    char seq[32];
+                    snprintf(seq, sizeof(seq), "\033[%d;%dH",p.y,0);
+                    Item h = '\n';
+                    insert(&s, p.x, &h);
+                    write(STDOUT_FILENO, "\r\033[K", 4);
+                    write(STDOUT_FILENO, seq, 7);
+                    break;
+                }else {
+                    move_cursor(&p, 1, 0);
+                }
+
                 break;
             case ESC:
                 write_to_file("tender.txt", &s);
@@ -305,10 +317,14 @@ int main(void){
                 break;
             case BACKSPACE:
 
-                delete_at(&s, p.x-1);
+                if(p.x > 1)
+                    move_cursor(&p, -1,0);
                 write(STDOUT_FILENO, "\r\033[K", 4);
+                delete_at(&s, p.x-1);
                 write(STDOUT_FILENO, s.data, s.length);
-                move_cursor(&p, -1,0);
+                char seq[32];
+                snprintf(seq, sizeof(seq), "\033[%d;%dH",p.y,p.x);
+                write(STDOUT_FILENO, seq, 7);
 
                 break;
             case DEL:
