@@ -315,6 +315,7 @@ int main(void){
                 close_sequence(&s);
                 return 1;
                 break;
+            case DEL:
             case BACKSPACE:
 
                 if(p.x > 1)
@@ -325,12 +326,6 @@ int main(void){
                 char seq[32];
                 snprintf(seq, sizeof(seq), "\033[%d;%dH",p.y,p.x);
                 write(STDOUT_FILENO, seq, 7);
-
-                break;
-            case DEL:
-                return 1;
-                break;
-
         }
         if (c >= 32 && c <= 126){
             unsigned char ch = (unsigned char )c;
@@ -338,23 +333,14 @@ int main(void){
             write(STDOUT_FILENO, "\r\033[K", 4);
             write(STDOUT_FILENO, s.data, s.length);
             move_cursor(&p, 1, 0);
-
         }
-
-        // //exit with ctrl C which sends ASCII 3 (ETX), used here to manually exit since ISIG is disabled
-        // if (c == 27){
-        //         break;
-        // }
-
-        // if (c == '\r'){
-        //     write(STDOUT_FILENO, "\n",1);
-        // }
+        if(c == 13){
+            unsigned char ch = (unsigned char )c;
+            insert(&s, p.x - 1, &ch);
+            write(STDOUT_FILENO, "\r\033[K", 4);
+            write(STDOUT_FILENO, s.data, s.length);
+            move_cursor(&p, 0, 1);
+        }
     }
-
-    // char *d = readfile("test.txt");
-    // if (d){
-    //     write_to_file("tender.txt",s.data);
-    //     free(d);
-    // }
     return 0;
 }
