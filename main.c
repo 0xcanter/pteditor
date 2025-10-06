@@ -1,3 +1,5 @@
+#include "lib/rope.h"
+#include <asm-generic/ioctls.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -5,11 +7,16 @@
 #include <termios.h>
 #include <time.h>
 #include <unistd.h>
+#include <sys/ioctl.h>
 struct termios orig_termios;
-
+struct winsize ws;
 typedef int ReturnCode ;
 typedef int Position;
-typedef unsigned char Item;
+typedef  unsigned char Item;
+
+void get_window_size(){
+    ioctl(STDOUT_FILENO, TIOCSWINSZ, &ws);
+}
 
 typedef struct {
     Item *data;
@@ -173,17 +180,17 @@ void enable_raw_mode(void)
 
 /* the clear screen function */
 void clear_screen(void) {
-    write(STDOUT_FILENO, "\x1b[2J", 4);
+    // write(STDOUT_FILENO, "\x1b[2J", 4);
     write(STDOUT_FILENO, "\x1b[H", 3);
 }
 
-void write_to_file(const char *filename,Sequence *s){
+void write_to_file(const char *filename,const char buff[]){
     FILE *file = fopen(filename, "w");
     if (!file){
         perror("could not open file");
         return;
     }
-    fwrite(s->data,1 , s->length, file);
+    fwrite(buff,1 ,strlen(buff), file);
     fclose(file);
 }
 
@@ -219,44 +226,45 @@ void get_cursor_position(int *rows,int *cols){
 int read_key(int fd){
     char c,seq[3];
     int nread;
-    while ((nread = read(fd,&c,1)) == 0);
-    if (nread == -1) return ESC;
+    while((nread = read(fd,&c,1)) == 0);
+    if (nread == -1)exit(1);
 
-        switch (c) {
-            case BACKSPACE:
-                return BACKSPACE;
-                break;
+    while(1){
+        switch(c){
             case ESC:
-
-                if(read(fd, seq, 1) == 0)return ESC;
-                if(read(fd,seq+1,1) == 0)return ESC;
-
+                if(read(fd,seq,1) == 0) return ESC;
+                if(read(fd,seq+1,1) == 0) return ESC;
                 if(seq[0] == '['){
                     if(seq[1] >= '0' && seq[1] <= '9'){
-
-                        if(read(fd, seq+2, 1) == 0)return ESC;
-                            if(seq[2] == '~'){
-                            switch (seq[1]) {
-                                    case '3': return DEL;
-                                    case '5': return PAGE_UP;
-                                    case '6': return PAGE_DOWN;
-                             }
+                        if(read(fd,seq+2,1) == 0) return ESC;
+                        if(seq[2] == '~'){
+                            switch(seq[1]){
+                                case '3': return DEL;
+                                case '5': return PAGE_UP;
+                                case '6': return PAGE_DOWN;
+                            }
                         }
                     }else{
-                        switch (seq[1]) {
+                        switch(seq[1]){
                             case 'A': return ARROW_UP;
                             case 'B': return ARROW_DOWN;
                             case 'C': return ARROW_RIGHT;
-                            case 'D': return ARROW_LEFT;
+                            case 'D': return ARROW_LEFT;    
                         }
                     }
                 }
-                break;
-            default:
-                return c;
+                // else if (seq[0] == 'O') {
+                //         switch(seq[1]){
+                            
+                //         }
+                // }
+                 break;
+             default:
+                 return c;
         }
-        return c;
-}
+    }
+    
+}    
 
 
 struct Point{
@@ -267,9 +275,17 @@ struct Point{
 void move_cursor(struct Point *p ,int dx,int dy){
     p->x += dx;
     p->y += dy;
-        char seq[32];
-        snprintf(seq, sizeof(seq), "\x1b[%d;%dH", p->y,p->x);
-        write(STDOUT_FILENO, seq, strlen(seq));
+    char seq[32];
+    snprintf(seq, sizeof(seq), "\x1b[%d;%dH", p->y,p->x);
+    write(STDOUT_FILENO, seq, strlen(seq));
+}
+
+// flush_to_rope(rope_node **node,char buff){
+
+// }
+
+void insert_to_buff(char buff[],const char c,unsigned long long buff_count){
+    buff[buff_count] =  c;
 }
 
 int main(void){
@@ -278,6 +294,12 @@ int main(void){
     // static int cursor_index = 0;
     enable_raw_mode();
     clear_screen();
+    rope_node *node;
+    unsigned long long buff_count = 0;
+    char buff[CHUNK_SIZE] ;
+    char b[20];
+    int len;
+    printf("%zu",strlen(buff));
     write(STDOUT_FILENO, "\x1b[1;1H", 6);
     while(1){
         int c = read_key(STDIN_FILENO);
@@ -301,7 +323,7 @@ int main(void){
                     char seq[32];
                     snprintf(seq, sizeof(seq), "\033[%d;%dH",p.y,0);
                     Item h = '\n';
-                    insert(&s, p.x, &h);
+                    // insert(&s, p.x, &h);
                     write(STDOUT_FILENO, "\r\033[K", 4);
                     write(STDOUT_FILENO, seq, 7);
                     break;
@@ -311,36 +333,45 @@ int main(void){
 
                 break;
             case ESC:
-                write_to_file("tender.txt", &s);
+                printf("%d is column and %d is row ",p.y,p.x);
+
+                write_to_file("tender.txt", buff);
                 close_sequence(&s);
                 return 1;
                 break;
             case DEL:
             case BACKSPACE:
 
-                if(p.x > 1)
+                if(p.x > 0){
                     move_cursor(&p, -1,0);
-                write(STDOUT_FILENO, "\r\033[K", 4);
-                delete_at(&s, p.x-1);
-                write(STDOUT_FILENO, s.data, s.length);
-                char seq[32];
-                snprintf(seq, sizeof(seq), "\033[%d;%dH",p.y,p.x);
-                write(STDOUT_FILENO, seq, 7);
+                //write(STDOUT_FILENO, "\r\033[K", 4);
+                //delete_at(&s, p.x-1);
+                    write(STDOUT_FILENO, "\b \b", 3);
+                    char seq[32];
+                    snprintf(seq, sizeof(seq), "\033[%d;%dH",p.y,p.x);
+                    write(STDOUT_FILENO, seq, 7);
+                
+                 }   
+                break;
         }
         if (c >= 32 && c <= 126){
             unsigned char ch = (unsigned char )c;
-            insert(&s, p.x - 1, &ch);
-            write(STDOUT_FILENO, "\r\033[K", 4);
-            write(STDOUT_FILENO, s.data, s.length);
+            // insert(&s, p.x - 1, &ch);
+            insert_to_buff(buff, c, buff_count);
+            buff_count++;
+            write(STDOUT_FILENO, &c, sizeof(c));
             move_cursor(&p, 1, 0);
         }
         if(c == 13){
             unsigned char ch = (unsigned char )c;
-            insert(&s, p.x - 1, &ch);
-            write(STDOUT_FILENO, "\r\033[K", 4);
-            write(STDOUT_FILENO, s.data, s.length);
-            move_cursor(&p, 0, 1);
-        }
+            // insert(&s, p.x - 1, &ch);
+            insert_to_buff(buff, '\n', buff_count);
+            buff_count++;
+            write(STDOUT_FILENO,"\n" , 1);
+            p.x = 1;
+            p.y++;
+            move_cursor(&p, 0, 0);
+         }
     }
     return 0;
 }

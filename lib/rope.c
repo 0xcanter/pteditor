@@ -7,13 +7,8 @@
 #include <time.h>
 #include <stdbool.h>
 #include "rope.h"
-#define CHUNK_SIZE 128
-typedef struct rope_node{
-    long weight;
-    char *str;
-    struct rope_node *left;
-    struct rope_node *right;
-}rope_node;
+
+
 
 
 
@@ -31,6 +26,17 @@ int exists_in_mem(rope_node *node,mem_for_special *mem) {
         }
     }
     return 0;
+}
+
+void free_mem(mem_for_special *mem){
+    for(int i = 0;i<mem->cap;i++){
+        rope_node *node = mem->arr[i];
+        if(!node)continue;
+        if (node->str){
+            free(node->str);
+        }
+        free(node);
+    }
 }
 
 void add_to_mem(mem_for_special *mem,rope_node *node){
@@ -56,6 +62,15 @@ rope_node *make_leaf(const char *str){
     size_t len = strlen(str);
     // printf("\n%zu first leaf\n",len);
     rope_node *leaf = malloc(sizeof(rope_node));
+
+    size_t l_count = 0;
+    for(int i = 0;i<len;i++){
+        if(str[i] == '\n'){
+            l_count++;
+        }
+    }
+
+    leaf->line_count = l_count;
     if(!leaf)return NULL;
     leaf->weight
         = len;
@@ -72,6 +87,15 @@ rope_node *make_leaf(const char *str){
 
 rope_node *make_leaf_owned(char *str,long len){
     rope_node *leaf = malloc(sizeof(rope_node));
+    
+    size_t l_count = 0;
+    for(int i = 0;i<len;i++){
+        if(str[i] == '\n'){
+            l_count++;
+        }
+    }
+
+    leaf->line_count = l_count;
     leaf->weight = len;
     leaf->str = str;
     leaf->str[leaf->weight] = '\0';
@@ -87,11 +111,20 @@ long length(rope_node *node){
     return node->weight + length(node->right);
 }
 
+size_t lines(rope_node *node){
+    if (node == NULL)return 0;
+    if (node->str != NULL){
+        return node->line_count;
+    }
+    return lines(node->left) + lines(node->right);
+}                        
+
 rope_node *concat(rope_node *left,rope_node *right){
     rope_node *node = malloc(sizeof(rope_node));
     node->left = left;
     node->right = right;
     node->str = NULL;
+    node->line_count = lines(left) + lines(right);
     node->weight = length(left);
     return node;
 }
@@ -250,6 +283,7 @@ rope_node *build_balanced_rope(rope_node **leaves,long n){
     parent->str = NULL;
     parent->left = left;
     parent->right = right;
+    parent->line_count = (left ? lines(left):0)+(right ? lines(right):0);
     parent->weight = left ? length(left):0;
     return parent;
 
@@ -359,3 +393,4 @@ char *flatten_to_string(rope_node *node){
     buffer[total_len] = '\0';
     return buffer;
 }
+                
