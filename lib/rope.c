@@ -219,44 +219,37 @@ void print_rope(rope_node *node) {
 
 
 void fast_substr(rope_node *node,long start,long end,rope_node **newsub,mem_for_special *mem){
+
     if(node == NULL){
         perror("error getting substring of the node: node is null");
         return;
     }
+    
     long len = length(node);
-    long new_start,new_end;
-    new_end = end;
+    long new_end;
+    
     if(start < 0 || start > len){
         perror("start cant be greater than length or less than 0");
         return;
     }
+    
     rope_node *l,*r;
     split_rope(node,start ,&l, &r,mem);
-    // print_rope(r);
-    if(end > length(node) - start){
-       new_end = length(node) - start;
-       printf("%lu new_end\n",new_end);     
-    }
-    if(start >= node->weight){
-        rope_node *L,*R;
-        // if(end > length(r))
-        split_rope(r, new_end, &L,&R ,mem);
-        *newsub = L;
-        add_to_mem(mem, r);
-        add_to_mem(mem, l);
-        add_to_mem(mem, R);
-        add_to_mem(mem, L);
-        return;
-    }else if(start <= node->weight){
-        rope_node *L,*R;
-        split_rope(r, new_end, &L, &R,mem);
-        *newsub = L;
-        add_to_mem(mem, r);
-        add_to_mem(mem, l);
-        add_to_mem(mem, R);
-        add_to_mem(mem, L);
-    }
 
+    long remains = len - start;
+    if(end > remains){
+       new_end = remains;
+    }else new_end = end;
+    
+    rope_node *L,*R;
+    split_rope(r, new_end, &L,&R ,mem);
+    newsub = L;
+    add_to_mem(mem, r);
+    add_to_mem(mem, l);
+    add_to_mem(mem, R);
+    add_to_mem(mem, L);
+    return;    
+   
     
 }
 
@@ -264,7 +257,7 @@ void split_rope(rope_node *node,long pos,rope_node **left,rope_node **right,mem_
     if(node == NULL){
         *left = NULL;
         *right = NULL;
-        perror("failed to split rope: rope is null");
+        // perror("failed to split rope: rope is null");
         return;
     };
     if(node->left == NULL && node->right == NULL){
@@ -406,7 +399,6 @@ void free_ropes(rope_node *root,mem_for_special *mem){
         root->str = NULL;
     }
     if(!exists_in_mem(root,mem)){
-        perror("it doesnt exist and am freeing\n");
         free(root);
         root = NULL;
     }

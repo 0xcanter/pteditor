@@ -25,7 +25,7 @@ int main(){
   }  
  // delete_rope(root, 17,  &root, 4, &mem);
  rope_node *buff;
- fast_substr(root, 12, 30,&buff,&mem);
+ fast_substr(root, 3, 1,&buff,&mem);
   print_rope(buff);
   printf("\n");
   free_ropes(root, &mem);
