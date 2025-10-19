@@ -1,5 +1,5 @@
 #include "lib/rope.h"
-#include <asm-generic/ioctls.h>
+// #include <asm-generic/ioctls.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -9,13 +9,12 @@
 #include <unistd.h>
 #include <sys/ioctl.h>
 struct termios orig_termios;
-struct winsize ws;
 typedef int ReturnCode ;
 typedef int Position;
 typedef  unsigned char Item;
 
-void get_window_size(){
-    ioctl(STDOUT_FILENO, TIOCSWINSZ, &ws);
+void get_window_size(struct winsize *ws){
+    ioctl(STDOUT_FILENO, TIOCGWINSZ, ws);
 }
 
 typedef struct {
@@ -249,7 +248,7 @@ int read_key(int fd){
                             case 'A': return ARROW_UP;
                             case 'B': return ARROW_DOWN;
                             case 'C': return ARROW_RIGHT;
-                            case 'D': return ARROW_LEFT;    
+                            case 'D': return ARROW_LEFT;
                         }
                     }
                 }
@@ -288,7 +287,9 @@ void insert_to_buff(char buff[],const char c,unsigned long long buff_count){
     buff[buff_count] =  c;
 }
 
-int main(void){
+void init(){
+    
+    struct winsize ws;
     Sequence s = empty();
     struct Point p = {1,1};
     // static int cursor_index = 0;
@@ -299,8 +300,6 @@ int main(void){
     char buff[CHUNK_SIZE] ;
     char b[20];
     int len;
-    printf("%zu",strlen(buff));
-    write(STDOUT_FILENO, "\x1b[1;1H", 6);
     while(1){
         int c = read_key(STDIN_FILENO);
         switch (c) {
@@ -318,26 +317,24 @@ int main(void){
                 break;
             case ARROW_RIGHT:
                 if(p.x < 1)p.x = 1;
-                if(s.length+1 == p.x){
-                    move_cursor(&p, 0, 1);
-                    char seq[32];
-                    snprintf(seq, sizeof(seq), "\033[%d;%dH",p.y,0);
-                    Item h = '\n';
-                    // insert(&s, p.x, &h);
-                    write(STDOUT_FILENO, "\r\033[K", 4);
-                    write(STDOUT_FILENO, seq, 7);
-                    break;
-                }else {
-                    move_cursor(&p, 1, 0);
-                }
-
-                break;
+                move_cursor(&p, 1, 0); 
+                 break;
             case ESC:
-                printf("%d is column and %d is row ",p.y,p.x);
-
+                p.x = 0;
+                p.y++;
+                move_cursor(&p, 0,0);
+                printf("\n%d is column and %d is row",p.y,p.x);
+                get_window_size(&ws);
+                printf("\n%hu is row",ws.ws_row);
+                p.x = 0;
+                p.y++;
+                move_cursor(&p, 0,0);
+                
+                fflush(stdout);
                 write_to_file("tender.txt", buff);
                 close_sequence(&s);
-                return 1;
+                // sleep(5);
+                return ;
                 break;
             case DEL:
             case BACKSPACE:
@@ -364,14 +361,17 @@ int main(void){
         }
         if(c == 13){
             unsigned char ch = (unsigned char )c;
-            // insert(&s, p.x - 1, &ch);
             insert_to_buff(buff, '\n', buff_count);
             buff_count++;
             write(STDOUT_FILENO,"\n" , 1);
             p.x = 1;
-            p.y++;
+            p.y += 1;
             move_cursor(&p, 0, 0);
          }
     }
+}
+
+int main(void){
+    init();
     return 0;
 }

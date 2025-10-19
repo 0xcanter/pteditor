@@ -5,7 +5,7 @@
 #include <time.h>
 int main(){
   rope_node *root;
-  char str[] = "hello\n my\n name\n is\n temples\n";
+  char str[] = "templeeeeeeeeeeee";
   int len = strlen(str)/2;
   printf("%zu\n",strlen(str));
   
@@ -21,11 +21,19 @@ int main(){
   init_mem_f_s(&mem, 1);
   if(mem.arr == NULL) {
     perror("initialization of mem failed");
+    return 1;
   }  
  // delete_rope(root, 17,  &root, 4, &mem);
-  print_rope(root);
+ rope_node *buff;
+ fast_substr(root, 12, 30,&buff,&mem);
+  print_rope(buff);
+  printf("\n");
   free_ropes(root, &mem);
+  // free_ropes(buff,&mem);
   free_mem(&mem);
-  free(mem.arr);
+  // free(mem.arr);
+  
+  // free(mem.arr);
+  return 0;
  // printf("total line is %zu\n",root->line_count);
 }
