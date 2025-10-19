@@ -243,7 +243,7 @@ void fast_substr(rope_node *node,long start,long end,rope_node **newsub,mem_for_
     
     rope_node *L,*R;
     split_rope(r, new_end, &L,&R ,mem);
-    newsub = L;
+    *newsub = L;
     add_to_mem(mem, r);
     add_to_mem(mem, l);
     add_to_mem(mem, R);
