@@ -1,12 +1,13 @@
 #ifndef ROPE_H
 #define ROPE_H
 #include "stddef.h"
-#define CHUNK_SIZE 4096
+#define CHUNK_SIZE 256
 
 typedef struct rope_node{
     long weight;
     char *str;
     size_t line_count;
+    int deleted;
     struct rope_node *left;
     struct rope_node *right;
 }rope_node;

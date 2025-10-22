@@ -1,3 +1,8 @@
 pteditor
 /PTExteditor
 *.txt
+*.bak
+main.o
+test.c
+test
+test1.c

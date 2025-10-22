@@ -35,10 +35,10 @@ void free_mem(mem_for_special *mem){
         perror("mem.arr is null");
         return;
     }
-    for(int i = 0;i<mem->cap;i++){
+       for(int i = 0;i<mem->cap;i++){
         rope_node *node = mem->arr[i];
         if(!node)continue;
-        if (node->str){
+         if (node->str){
             free(node->str);
         }
         free(node);
@@ -163,8 +163,8 @@ rope_node *concat(rope_node *left,rope_node *right){
     node->left = left;
     node->right = right;
     node->str = NULL;
-    node->line_count = lines(left) + lines(right);
-    node->weight = length(left);
+    node->line_count = left->line_count + right->line_count;
+    node->weight = left->weight + right->weight;
     return node;
 }
 
@@ -264,10 +264,12 @@ void split_rope(rope_node *node,long pos,rope_node **left,rope_node **right,mem_
         if (pos <= 0){
             *left = NULL;
             *right = node;
+            add_to_mem(mem, *left);
             return;
         }else if(pos >= node->weight){
             *left = node;
             *right = NULL;
+            add_to_mem(mem, *right);
             return;
         }else if (pos <= node->weight){
             char *left_str = malloc(pos + 1);
@@ -290,6 +292,7 @@ void split_rope(rope_node *node,long pos,rope_node **left,rope_node **right,mem_
         *left = L;
         *right = concat(R, node->right);
         add_to_mem(mem,node);
+        add_to_mem(mem, *right);
     }else if(pos == node->weight){
         *left = node->left;
         *right = node->right;
@@ -300,6 +303,7 @@ void split_rope(rope_node *node,long pos,rope_node **left,rope_node **right,mem_
         *left = concat(node->left, L);
         *right = R;
         add_to_mem(mem,node);
+        add_to_mem(mem,*left);
     }
 
 }
@@ -333,9 +337,9 @@ void delete_rope(rope_node *node,long pos,rope_node **root,long len,mem_for_spec
     rope_node *left,*right,*temp,*ignore;
     split_rope(node, pos, &left, &temp,mem);
     split_rope(temp, len, &ignore, &right,mem);
-    add_to_mem(mem, ignore);
+    free_ropes(ignore, mem);
+    printf("depth is %lu\n",count_depth(ignore));
     add_to_mem(mem, temp);
-    add_to_mem(mem,node);
     *root = concat(left, right);
 }
 
@@ -398,6 +402,7 @@ void free_ropes(rope_node *root,mem_for_special *mem){
         free(root->str);
         root->str = NULL;
     }
+    // free(root);
     if(!exists_in_mem(root,mem)){
         free(root);
         root = NULL;

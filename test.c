@@ -1,39 +1,42 @@
-#include "lib/rope.h"
+#include <stddef.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include <time.h>
+#include "lib/rope.h"
 int main(){
-  rope_node *root;
-  char str[] = "templeeeeeeeeeeee";
-  int len = strlen(str)/2;
-  printf("%zu\n",strlen(str));
+  FILE *f = fopen("test2.txt", "r");
   
-  rope_node *left,*right;
-  char *str2 = str+len;
-  right = make_leaf(str2);
-  str[len] = '\0';
-  char *str1 = str;
-
-  left = make_leaf(str1);
-  root = concat(left,right);
+  fseek(f,0,SEEK_END);
+  size_t size = ftell(f);
+  rewind(f);
+  char *str = malloc(size+1);
+  if(!str){
+    perror("malloc failed");
+    fclose(f);
+  }
+  fread(str, 1, size, f);
+  str[size] = '\0';
+  fclose(f);
+  rope_node **leaves;
+  leaves = NULL;
+  long cap = 0,count = 0; 
+  for(size_t i = 0;i < size; i+=CHUNK_SIZE){
+      size_t len = (i + CHUNK_SIZE < size) ? CHUNK_SIZE : size - i;
+      if(count >= cap){
+        cap = (cap == 0) ? 8 : cap * 2;
+        leaves = realloc(leaves,sizeof(rope_node *) * cap);
+      }
+      char *buf = malloc(CHUNK_SIZE + 1);
+      memcpy(buf, str + i,len);
+      buf[len] = '\0';
+      leaves[count++] = make_leaf_owned(buf, len);
+  }
+  rope_node *root = build_balanced_rope(leaves, count);
+  free(leaves);
   mem_for_special mem;
-  init_mem_f_s(&mem, 1);
-  if(mem.arr == NULL) {
-    perror("initialization of mem failed");
-    return 1;
-  }  
- // delete_rope(root, 17,  &root, 4, &mem);
- rope_node *buff;
- fast_substr(root, 3, 1,&buff,&mem);
-  print_rope(buff);
-  printf("\n");
-  free_ropes(root, &mem);
-  // free_ropes(buff,&mem);
+  init_mem_f_s(&mem, 1); 
+  free_ropes(root,&mem);
   free_mem(&mem);
-  // free(mem.arr);
-  
-  // free(mem.arr);
+  free(str);
   return 0;
- // printf("total line is %zu\n",root->line_count);
 }
