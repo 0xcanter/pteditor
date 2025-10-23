@@ -5,3 +5,6 @@ pteditor: main.c lib/rope.c
 
 run:
 	./pteditor
+
+test: test.c lib/rope.c
+	@gcc -Wall -g lib/rope.c test.c -o test -fsanitize=address

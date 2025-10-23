@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <time.h>
 #include "lib/rope.h"
 int main(){
   FILE *f = fopen("test2.txt", "r");
@@ -19,24 +20,37 @@ int main(){
   fclose(f);
   rope_node **leaves;
   leaves = NULL;
-  long cap = 0,count = 0; 
-  for(size_t i = 0;i < size; i+=CHUNK_SIZE){
-      size_t len = (i + CHUNK_SIZE < size) ? CHUNK_SIZE : size - i;
+  long cap = 0,count = 0;
+  clock_t start,end;
+  double cpu_time_used;
+  start = clock();
+  for(size_t i = 0;i < size; i+=(CHUNK_SIZE * 4) ){
+      size_t len = (i + (CHUNK_SIZE *4) < size) ? (CHUNK_SIZE * 4) : size - i;
       if(count >= cap){
         cap = (cap == 0) ? 8 : cap * 2;
         leaves = realloc(leaves,sizeof(rope_node *) * cap);
       }
-      char *buf = malloc(CHUNK_SIZE + 1);
+      char *buf = malloc((CHUNK_SIZE * 4) + 1);
       memcpy(buf, str + i,len);
       buf[len] = '\0';
       leaves[count++] = make_leaf_owned(buf, len);
   }
-  rope_node *root = build_balanced_rope(leaves, count);
-  free(leaves);
+  free(str);
+  // printf("hello %lu\n",count);
+  
   mem_for_special mem;
   init_mem_f_s(&mem, 1); 
+  rope_node *root = build_balanced_rope(leaves, count);
+  rope_node *del;
+  delete_rope(root, 5000000, &root, 50000, &mem, &del);
+  free(leaves);
+  insert_rope(root, 6004004, "tenny", &root, &mem);
+  end = clock();
+  cpu_time_used = ((double)(end-start)) / CLOCKS_PER_SEC;
+  printf("time taken %f seconds",cpu_time_used);
   free_ropes(root,&mem);
+  free_ropes(del, &mem);
   free_mem(&mem);
-  free(str);
+  // free(str);
   return 0;
 }

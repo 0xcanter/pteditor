@@ -33,20 +33,28 @@ int main(){
     mem_for_special mem;
     init_mem_f_s(&mem, 1);
     
-    rope_node *root = build_balanced_rope(leaves, count);
     start = clock();
-    rope_node *new;
-    free(leaves);
-    delete_rope(root, 169394250, &root, 3000, &mem);
-    // insert_rope(root,169394250 , "heyllo", &root, &mem);
+    rope_node *root = build_balanced_rope(leaves, count);
+    // rope_node *new;
+    // flatten_to_string(hello)
     end = clock();
+    free(leaves);
+    printf("%p first address of the rope\n",(void*)root);
+    rope_node *del;
+    del = NULL;
+    delete_rope(root, 169394250, &root, 3000, &mem,&del);
+    printf("%p first address of the rope\n",(void*)root);
+    // insert_rope(root,169394250 , "heyllo", &root, &mem);
     cpu_time_used = ((double)(end-start)) / CLOCKS_PER_SEC;
     printf("time taken: %f seconds\n",cpu_time_used);
-    int depth = count_depth(root);
+    // int depth = count_depth(root);
     printf("%lu weight\n",root->weight);
+    // free_mem(&trash);
     free_ropes(root,&mem);
     // add_to_mem(&mem, root);
+    free_ropes(del, &mem);
     free_mem(&mem);
+    // free(trash.arr);
     fclose(f);
     char *tt = "";
     printf("%zu\n",strlen(tt)); 

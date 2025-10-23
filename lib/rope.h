@@ -32,7 +32,7 @@ void print_rope(rope_node *node);
 void fast_substr(rope_node *node,long start,long end,rope_node **newsub,mem_for_special *mem);
 void split_rope(rope_node *node,long pos,rope_node **left,rope_node **right,mem_for_special *mem);
 void insert_rope(rope_node *node,long pos,char *text,rope_node **root,mem_for_special *mem);
-void delete_rope(rope_node *node,long pos,rope_node **root,long len,mem_for_special *mem);
+void delete_rope(rope_node *node,long pos,rope_node **root,long len,mem_for_special *mem,rope_node **deleted);
 void leaves_count(rope_node *node,long *i);
 int collect_leaves(rope_node *node,rope_node **leaves,int index);
 rope_node *build_balanced_rope(rope_node **leaves,long n);

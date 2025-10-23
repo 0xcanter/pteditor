@@ -35,7 +35,7 @@ void free_mem(mem_for_special *mem){
         perror("mem.arr is null");
         return;
     }
-       for(int i = 0;i<mem->cap;i++){
+       for(int i = 0;i<mem->size;i++){
         rope_node *node = mem->arr[i];
         if(!node)continue;
          if (node->str){
@@ -164,7 +164,7 @@ rope_node *concat(rope_node *left,rope_node *right){
     node->right = right;
     node->str = NULL;
     node->line_count = left->line_count + right->line_count;
-    node->weight = left->weight + right->weight;
+    node->weight = length(left);
     return node;
 }
 
@@ -257,19 +257,16 @@ void split_rope(rope_node *node,long pos,rope_node **left,rope_node **right,mem_
     if(node == NULL){
         *left = NULL;
         *right = NULL;
-        // perror("failed to split rope: rope is null");
         return;
     };
     if(node->left == NULL && node->right == NULL){
         if (pos <= 0){
             *left = NULL;
             *right = node;
-            add_to_mem(mem, *left);
             return;
         }else if(pos >= node->weight){
             *left = node;
             *right = NULL;
-            add_to_mem(mem, *right);
             return;
         }else if (pos <= node->weight){
             char *left_str = malloc(pos + 1);
@@ -280,7 +277,6 @@ void split_rope(rope_node *node,long pos,rope_node **left,rope_node **right,mem_
             *right = make_leaf_owned(right_str,node->weight - pos);
             add_to_mem(mem, *left);
             add_to_mem(mem, *right);
-            
             add_to_mem(mem,node);
             return;
         }
@@ -292,7 +288,6 @@ void split_rope(rope_node *node,long pos,rope_node **left,rope_node **right,mem_
         *left = L;
         *right = concat(R, node->right);
         add_to_mem(mem,node);
-        add_to_mem(mem, *right);
     }else if(pos == node->weight){
         *left = node->left;
         *right = node->right;
@@ -303,7 +298,6 @@ void split_rope(rope_node *node,long pos,rope_node **left,rope_node **right,mem_
         *left = concat(node->left, L);
         *right = R;
         add_to_mem(mem,node);
-        add_to_mem(mem,*left);
     }
 
 }
@@ -320,7 +314,7 @@ void insert_rope(rope_node *node,long pos,char *text,rope_node **root,mem_for_sp
     *root = concat(left, concat(insert_leaf, right));
 }
 
-void delete_rope(rope_node *node,long pos,rope_node **root,long len,mem_for_special *mem){
+void delete_rope(rope_node *node,long pos,rope_node **root,long len,mem_for_special *mem,rope_node **deleted){
     if (!node || len <= 0){
         *root = node;
         perror("error deleting node: node is null");
@@ -337,8 +331,7 @@ void delete_rope(rope_node *node,long pos,rope_node **root,long len,mem_for_spec
     rope_node *left,*right,*temp,*ignore;
     split_rope(node, pos, &left, &temp,mem);
     split_rope(temp, len, &ignore, &right,mem);
-    free_ropes(ignore, mem);
-    printf("depth is %lu\n",count_depth(ignore));
+    *deleted = ignore;
     add_to_mem(mem, temp);
     *root = concat(left, right);
 }
@@ -403,12 +396,14 @@ void free_ropes(rope_node *root,mem_for_special *mem){
         root->str = NULL;
     }
     // free(root);
-    if(!exists_in_mem(root,mem)){
+    if(exists_in_mem(root,mem) == 0){
         free(root);
         root = NULL;
     }
 
 }
+
+
 
 void free_internal(rope_node *node){
     if (node == NULL){
