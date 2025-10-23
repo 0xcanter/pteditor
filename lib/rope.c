@@ -45,6 +45,8 @@ void free_mem(mem_for_special *mem){
     }
     free(mem->arr);
     mem->arr = NULL;
+    mem->cap = 0;
+    mem->size = 0;
 }
 
 void add_to_mem(mem_for_special *mem,rope_node *node){
@@ -288,6 +290,8 @@ void split_rope(rope_node *node,long pos,rope_node **left,rope_node **right,mem_
         *left = L;
         *right = concat(R, node->right);
         add_to_mem(mem,node);
+        add_to_mem(mem, *left);
+        add_to_mem(mem, *right);
     }else if(pos == node->weight){
         *left = node->left;
         *right = node->right;
@@ -297,6 +301,8 @@ void split_rope(rope_node *node,long pos,rope_node **left,rope_node **right,mem_
         split_rope(node->right, pos - node->weight,&L,&R,mem);
         *left = concat(node->left, L);
         *right = R;
+        add_to_mem(mem, *left);
+        add_to_mem(mem, *right);
         add_to_mem(mem,node);
     }
 
