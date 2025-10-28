@@ -6,6 +6,7 @@
 #include <sys/types.h>
 #include <time.h>
 #include <stdbool.h>
+#include <unistd.h>
 #include "rope.h"
 
 
@@ -22,7 +23,7 @@ void init_mem_f_s(mem_for_special *mem,size_t initial_cap){
 
 int exists_in_mem(rope_node *node,mem_for_special *mem) {
     if(node == NULL || mem->cap <= 0)return -1;
-    for (size_t i = 0; i < mem->cap; i++) {
+    for (size_t i = 0; i < mem->size; i++) {
         if (mem->arr[i] == node) {
             return 1;
         }
@@ -37,11 +38,14 @@ void free_mem(mem_for_special *mem){
     }
        for(int i = 0;i<mem->size;i++){
         rope_node *node = mem->arr[i];
+        // if(!node)perror("hey thats\n");
         if(!node)continue;
          if (node->str){
             free(node->str);
+            node->str = NULL;
         }
         free(node);
+        // mem->arr[i] = NULL;
     }
     free(mem->arr);
     mem->arr = NULL;
@@ -342,7 +346,7 @@ void delete_rope(rope_node *node,long pos,rope_node **root,long len,mem_for_spec
     *root = concat(left, right);
 }
 
-void leaves_count(rope_node *node,long *i){
+void leaves_count(rope_node *node,int *i){
     if (node == NULL)return;
     if (node->str != NULL && node->left == NULL && node->right == NULL){
         *i += 1;
@@ -358,7 +362,7 @@ int collect_leaves(rope_node *node,rope_node **leaves,int index){
     if (node == NULL){
         return index;
     }
-    if (node->left == NULL && node->right == NULL){
+    if (node->left == NULL && node->right == NULL&& node->str != NULL){
         leaves[index++] = node;
         return index;
     }
@@ -366,6 +370,28 @@ int collect_leaves(rope_node *node,rope_node **leaves,int index){
 
    index =  collect_leaves(node->right, leaves, index);
     return index;
+}
+
+void rebalance(rope_node *node,rope_node **root,mem_for_special *mem){
+    int count = 0;
+    printf("for node %lu\n",count_depth(node));
+
+    printf("for right %lu\n",count_depth(node->right));
+
+    printf("for left %lu\n", count_depth(node->left));
+    
+    leaves_count(node, &count);
+    printf("%d\n",count);
+    rope_node **leaves = malloc(sizeof(rope_node*) * count);
+    count = 0;
+    count = collect_leaves(node, leaves,0);
+    printf("%d\n",count);
+    if(leaves == NULL)return;
+    
+    *root = build_balanced_rope(leaves, count);
+    // add_to_mem(mem,node);
+    free_internal(node,mem);
+    free(leaves);
 }
 
 rope_node *build_balanced_rope(rope_node **leaves,long n){
@@ -411,17 +437,21 @@ void free_ropes(rope_node *root,mem_for_special *mem){
 
 
 
-void free_internal(rope_node *node){
+void free_internal(rope_node *node,mem_for_special *mem){
     if (node == NULL){
         return;
     }
-    free_internal(node->left);
-    free_internal(node->right);
+    free_internal(node->left,mem);
+    free_internal(node->right,mem);
 
     if(node->str == NULL){
-        free(node);
-        node = NULL;
+         if(exists_in_mem(node,mem) == 0){
+            free(node);
+            node = NULL;
+        }
     };
+    // free(node);
+   
 
 }
 
@@ -450,11 +480,16 @@ unsigned long long fibonacci(long n){
 
 int is_balanced(rope_node *node){
     if (node == NULL) return 2;
+    
+    printf("for node %lu\n",count_depth(node));
 
+    printf("for right %lu\n",count_depth(node->right));
+
+    printf("for left %lu\n", count_depth(node->left));
     long rope_length = length(node);
     long depth_length = count_depth(node);
     unsigned long long fib_depth = fibonacci(depth_length + 2);
-    // printf("\n%llu fib depth and rope %ld\n",fib_depth,rope_length);
+    printf("\n%llu fib depth and rope %ld\n",fib_depth,rope_length);
     return rope_length >= fib_depth ? 1:0;
 }
 
@@ -475,7 +510,7 @@ char find_char_rope(rope_node *node,long i){
 
 void copy_leaves(rope_node *n,char *buf,long *pos){
     if(!n)return;
-    if(n->left == NULL && n->right == NULL && n->str != NULL){
+    if(n->left == NULL && n->right == NULL){
         memcpy(buf + *pos, n->str,n->weight);
         *pos += n->weight;
         return;
@@ -497,3 +532,11 @@ char *flatten_to_string(rope_node *node){
     return buffer;
 }
                 
+void rope_append(rope_node **root,const char *str){
+    rope_node *leaf = make_leaf(str);
+    if(*root == NULL){
+        *root = leaf;
+        return;
+    }
+    *root = concat(*root, leaf);
+}

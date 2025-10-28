@@ -297,7 +297,9 @@ void init(){
     clear_screen();
     rope_node *node;
     unsigned long long buff_count = 0;
-    char buff[CHUNK_SIZE] ;
+    char buff[CHUNK_SIZE * 4] ;
+    rope_node *root;
+    root = NULL;
     char b[20];
     int len;
     while(1){
@@ -329,10 +331,27 @@ void init(){
                 p.x = 0;
                 p.y++;
                 move_cursor(&p, 0,0);
+                if(buff_count != (CHUNK_SIZE * 4) - 1 ){
+                    rope_append(&root, buff);
+                }
                 
-                fflush(stdout);
-                write_to_file("tender.txt", buff);
                 close_sequence(&s);
+                if(root == NULL){
+                    printf("root is null return\n");
+                    write_to_file("tender.txt", buff);
+                    return;
+                    break;
+                };
+                                fflush(stdout);
+                char *stt;
+                stt = flatten_to_string(root);
+                
+                write_to_file("tender.txt", stt);
+                mem_for_special mem;
+                init_mem_f_s(&mem, 1);
+                free_ropes(root, &mem);
+                free_mem(&mem);
+                free(stt);
                 // sleep(5);
                 return ;
                 break;
@@ -354,15 +373,30 @@ void init(){
         if (c >= 32 && c <= 126){
             unsigned char ch = (unsigned char )c;
             // insert(&s, p.x - 1, &ch);
+            if(buff_count == (CHUNK_SIZE * 4) - 1){
+                // printf("%llu\n",buff_count);
+                // buff[buff_count] = '\0';
+                rope_append(&root, buff);
+                buff_count = 0;
+            }
+            // buff_count = (buff_count < (CHUNK_SIZE * 4)) ?  buff_count:0;
             insert_to_buff(buff, c, buff_count);
             buff_count++;
+            buff[buff_count] = '\0';
             write(STDOUT_FILENO, &c, sizeof(c));
             move_cursor(&p, 1, 0);
         }
         if(c == 13){
             unsigned char ch = (unsigned char )c;
+            if(buff_count == (CHUNK_SIZE * 4) - 1){
+                buff[buff_count] = '\0';
+                rope_append(&root, buff);
+                buff_count = 0;
+            }
+             // buff_count = (buff_count < (CHUcNK_SIZE * 4)) ? buff_count : 0;
             insert_to_buff(buff, '\n', buff_count);
             buff_count++;
+            buff[buff_count] = '\0';
             write(STDOUT_FILENO,"\n" , 1);
             p.x = 1;
             p.y += 1;

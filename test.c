@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
+#include <unistd.h>
 #include "lib/rope.h"
 int main(){
   FILE *f = fopen("test2.txt", "r");
@@ -15,7 +16,8 @@ int main(){
     perror("malloc failed");
     fclose(f);
   }
-  fread(str, 1, size, f);
+  long long fr = fread(str, 1, size, f);
+  printf("%llu\n",fr);
   str[size] = '\0';
   fclose(f);
   rope_node **leaves;
@@ -23,7 +25,6 @@ int main(){
   long cap = 0,count = 0;
   clock_t start,end;
   double cpu_time_used;
-  start = clock();
   for(size_t i = 0;i < size; i+=(CHUNK_SIZE * 4) ){
       size_t len = (i + (CHUNK_SIZE *4) < size) ? (CHUNK_SIZE * 4) : size - i;
       if(count >= cap){
@@ -36,7 +37,7 @@ int main(){
       leaves[count++] = make_leaf_owned(buf, len);
   }
   free(str);
-  // printf("hello %lu\n",count);
+  printf("hello %lu\n",count);
   
   mem_for_special mem;
   init_mem_f_s(&mem, 1); 
@@ -44,16 +45,151 @@ int main(){
   rope_node *del;
   delete_rope(root, 5000000, &root, 50000, &mem, &del);
   free(leaves);
-  insert_rope(root, 6004004, "temple is the name of myself and ...", &root, &mem);
   // rope_node buff;
-  rope_node *uff;
-  fast_substr(root, 6004004, 36, &uff, &mem);
-  print_rope(uff);
-  printf("\n");
+  start = clock();
+  rope_node *i;
+  i = NULL;
+  insert_rope(root, 6004004, "HELLO", &root, &mem);
+  insert_rope(root, 6004004, "HELLO", &root, &mem);
+  insert_rope(root, 6004004, "HELLO", &root, &mem);
+  insert_rope(root, 6004004, "HELLO", &root, &mem);
+  insert_rope(root, 6004004, "HELLO", &root, &mem);
+  insert_rope(root, 6004004, "HELLO", &root, &mem);
+  insert_rope(root, 6004004, "HELLO", &root, &mem);
+  insert_rope(root, 6004004, "HELLO", &root, &mem);
+  insert_rope(root, 6004004, "HELLO", &root, &mem);
+  insert_rope(root, 6004004, "HELLO", &root, &mem);
+  // rope_node *uff;
+  insert_rope(root, 6004004, "HELLO", &root, &mem);
+  insert_rope(root, 6004004, "HELLO", &root, &mem);
+  insert_rope(root, 6004004, "HELLO", &root, &mem);
+  insert_rope(root, 6004004, "HELLO", &root, &mem);
+  insert_rope(root, 6004004, "HELLO", &root, &mem);
+  insert_rope(root, 6004004, "HELLO", &root, &mem);
+  insert_rope(root, 6004004, "HELLO", &root, &mem);
+  insert_rope(root, 6004004, "HELLO", &root, &mem);
+  insert_rope(root, 6004004, "HELLO", &root, &mem);
+  insert_rope(root, 6004004, "HELLO", &root, &mem);
+  insert_rope(root, 6004004, "HELLO", &root, &mem);
+  insert_rope(root, 6004004, "HELLO", &root, &mem);
+  insert_rope(root, 6004004, "HELLO", &root, &mem);
+  insert_rope(root, 6004004, "HELLO", &root, &mem);
+  insert_rope(root, 6004004, "HELLO", &root, &mem);
+  insert_rope(root, 6004004, "HELLO", &root, &mem);
+  insert_rope(root, 6004004, "HELLO", &root, &mem);
+  insert_rope(root, 6004004, "HELLO", &root, &mem);
+  insert_rope(root, 6004004, "HELLO", &root, &mem);
+  insert_rope(root, 6004004, "HELLO", &root, &mem);
+  insert_rope(root, 6004004, "HELLO", &root, &mem);
+  insert_rope(root, 6004004, "HELLO", &root, &mem);
+  insert_rope(root, 6004004, "HELLO", &root, &mem);
+  insert_rope(root, 6004004, "HELLO", &root, &mem);
+  insert_rope(root, 6004004, "HELLO", &root, &mem);
+  insert_rope(root, 6004004, "HELLO", &root, &mem);
+  insert_rope(root, 6004004, "HELLO", &root, &mem);
+  insert_rope(root, 6004004, "HELLO", &root, &mem);
+  insert_rope(root, 6004004, "HELLO", &root, &mem);
+  insert_rope(root, 6004004, "HELLO", &root, &mem);
+  insert_rope(root, 6004004, "HELLO", &root, &mem);
+  insert_rope(root, 6004004, "HELLO", &root, &mem);
+  insert_rope(root, 6004004, "HELLO", &root, &mem);
+  insert_rope(root, 6004004, "HELLO", &root, &mem);
+  insert_rope(root, 6004004, "HELLO", &root, &mem);
+  insert_rope(root, 6004004, "HELLO", &root, &mem);
+  insert_rope(root, 6004004, "HELLO", &root, &mem);
+  insert_rope(root, 6004004, "HELLO", &root, &mem);
+  insert_rope(root, 6004004, "HELLO", &root, &mem);
+  insert_rope(root, 6004004, "HELLO", &root, &mem);
+  insert_rope(root, 6004004, "HELLO", &root, &mem);
+  insert_rope(root, 6004004, "HELLO", &root, &mem);
+  insert_rope(root, 6004004, "HELLO", &root, &mem);
+  insert_rope(root, 6004004, "HELLO", &root, &mem);
+  insert_rope(root, 6004004, "HELLO", &root, &mem);
+  insert_rope(root, 6004004, "HELLO", &root, &mem);
+  insert_rope(root, 6004004, "HELLO", &root, &mem);
+  insert_rope(root, 6004004, "HELLO", &root, &mem);
+  insert_rope(root, 6004004, "HELLO", &root, &mem);
+  insert_rope(root, 6004004, "HELLO", &root, &mem);
+  insert_rope(root, 6004004, "HELLO", &root, &mem);
+  insert_rope(root, 6004004, "HELLO", &root, &mem);
+  insert_rope(root, 6004004, "HELLO", &root, &mem);
+  insert_rope(root, 6004004, "HELLO", &root, &mem);
+  insert_rope(root, 6004004, "HELLO", &root, &mem);
+  if (is_balanced(root) == 0){
+      rebalance(root, &root, &mem);
+  }else{
+    i = root;
+  }
+  is_balanced(root);
+  insert_rope(root, 6004004, "HELLO", &root, &mem);
+  insert_rope(root, 6004004, "HELLO", &root, &mem);
+  insert_rope(root, 6004004, "HELLO", &root, &mem);
+  insert_rope(root, 6004004, "HELLO", &root, &mem);
+  insert_rope(root, 6004004, "HELLO", &root, &mem);
+  insert_rope(root, 6004004, "HELLO", &root, &mem);
+  insert_rope(root, 6004004, "HELLO", &root, &mem);
+  insert_rope(root, 6004004, "HELLO", &root, &mem);
+  insert_rope(root, 6004004, "HELLO", &root, &mem);
+  insert_rope(root, 6004004, "HELLO", &root, &mem);
+  insert_rope(root, 6004004, "HELLO", &root, &mem);
+  insert_rope(root, 6004004, "HELLO", &root, &mem);
+  insert_rope(root, 6004004, "HELLO", &root, &mem);
+  insert_rope(root, 6004004, "HELLO", &root, &mem);
+  insert_rope(root, 6004004, "HELLO", &root, &mem);
+  insert_rope(root, 6004004, "HELLO", &root, &mem);
+  insert_rope(root, 6004004, "HELLO", &root, &mem);
+  insert_rope(root, 6004004, "HELLO", &root, &mem);
+  insert_rope(root, 6004004, "HELLO", &root, &mem);
+  insert_rope(root, 6004004, "HELLO", &root, &mem);
+  insert_rope(root, 6004004, "HELLO", &root, &mem);
+  insert_rope(root, 6004004, "HELLO", &root, &mem);
+  insert_rope(root, 6004004, "HELLO", &root, &mem);
+  insert_rope(root, 6004004, "HELLO", &root, &mem);
+  insert_rope(root, 6004004, "HELLO", &root, &mem);
+  insert_rope(root, 6004004, "HELLO", &root, &mem);
+  insert_rope(root, 6004004, "HELLO", &root, &mem);
+  insert_rope(root, 6004004, "HELLO", &root, &mem);
+  insert_rope(root, 6004004, "HELLO", &root, &mem);
+  insert_rope(root, 6004004, "HELLO", &root, &mem);
+  insert_rope(root, 6004004, "HELLO", &root, &mem);
+  insert_rope(root, 6004004, "HELLO", &root, &mem);
+  insert_rope(root, 6004004, "HELLO", &root, &mem);
+  insert_rope(root, 6004004, "HELLO", &root, &mem);
+  insert_rope(root, 6004004, "HELLO", &root, &mem);
+  insert_rope(root, 6004004, "HELLO", &root, &mem);
+  insert_rope(root, 6004004, "HELLO", &root, &mem);
+  insert_rope(root, 6004004, "HELLO", &root, &mem);
+  insert_rope(root, 6004004, "HELLO", &root, &mem);
+  insert_rope(root, 6004004, "HELLO", &root, &mem);
+  insert_rope(root, 6004004, "HELLO", &root, &mem);
+  insert_rope(root, 6004004, "HELLO", &root, &mem);
+  insert_rope(root, 6004004, "HELLO", &root, &mem);
+  insert_rope(root, 6004004, "HELLO", &root, &mem);
+  insert_rope(root, 6004004, "HELLO", &root, &mem);
+  insert_rope(root, 6004004, "HELLO", &root, &mem);
+  insert_rope(root, 6004004, "HELLO", &root, &mem);
+  insert_rope(root, 6004004, "HELLO", &root, &mem);
+  insert_rope(root, 6004004, "HELLO", &root, &mem);
+  insert_rope(root, 6004004, "HELLO", &root, &mem);
+  insert_rope(root, 6004004, "HELLO", &root, &mem);
+  insert_rope(root, 6004004, "HELLO", &root, &mem);
+  insert_rope(root, 6004004, "HELLO", &root, &mem);
+  insert_rope(root, 6004004, "HELLO", &root, &mem);
+  insert_rope(root, 6004004, "HELLO", &root, &mem);
+  insert_rope(root, 6004004, "HELLO", &root, &mem);
+  insert_rope(root, 6004004, "HELLO", &root, &mem);
+  insert_rope(root, 6004004, "HELLO", &root, &mem);
+  insert_rope(root, 6004004, "HELLO", &root, &mem);
+  insert_rope(root, 6004004, "HELLO", &root, &mem);
+  // fast_substr(root, 6004004, 5, &uff, &mem);
+  // print_rope(uff);
+  is_balanced(root);
   end = clock();
+  printf("\n");
   cpu_time_used = ((double)(end-start)) / CLOCKS_PER_SEC;
   printf("time taken %f seconds",cpu_time_used);
   // free_ropes(uff,&mem);
+  // free_internal(root, &mem);
   free_ropes(del, &mem);
   free_ropes(root,&mem);
   free_mem(&mem);

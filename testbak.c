@@ -30,10 +30,14 @@ int main(){
  rope_node *del;
  delete_rope(root, 10, &root, 4, &mem, &del);
  char t = find_char_rope(root, 10);
+ char *buf;
+ buf = flatten_to_string(root);
+ printf("%s\n",buf);
+ free(buf);
   print_rope(buff);
   printf("%c\n",t);
   free_ropes(root, &mem);
-  free_ropes(buff,&mem);
+  // free_ropes(buff,&mem);
   free_ropes(del, &mem);
   free_mem(&mem);
   // free(mem.arr);
