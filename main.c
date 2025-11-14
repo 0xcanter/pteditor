@@ -176,19 +176,18 @@ void enable_raw_mode(void)
 
 }
 
-/* the clear screen function */
 void clear_screen(void) {
-    // write(STDOUT_FILENO, "\x1b[2J", 4);
     write(STDOUT_FILENO, "\x1b[H", 3);
 }
 
-void write_to_file(const char *filename,const char buff[]){
+void write_to_file(const char *filename,const char *buff,size_t byte){
+    if(!buff)return;
     FILE *file = fopen(filename, "w");
     if (!file){
         perror("could not open file");
         return;
     }
-    fwrite(buff,1 ,strlen(buff), file);
+    fwrite(buff,1 ,byte, file);
     fclose(file);
 }
 
@@ -199,13 +198,14 @@ enum {
     ARROW_UP,
     ARROW_RIGHT,
     ARROW_DOWN,
+    HOME,
+    END,
     DEL,
     PAGE_UP,
     PAGE_DOWN,
 };
 
 void get_cursor_position(int *rows,int *cols){
-    // get cursor position
     write(STDOUT_FILENO, "\x1b[6n", 4);
     char buff[32];
     int i = 0;
@@ -240,6 +240,8 @@ int read_key(int fd){
                                 case '3': return DEL;
                                 case '5': return PAGE_UP;
                                 case '6': return PAGE_DOWN;
+                                case '1': return HOME;
+                                case '4': return END;
                             }
                         }
                     }else{
@@ -248,14 +250,11 @@ int read_key(int fd){
                             case 'B': return ARROW_DOWN;
                             case 'C': return ARROW_RIGHT;
                             case 'D': return ARROW_LEFT;
+                            case '1': return HOME;
+                            case 'F': return END;
                         }
                     }
                 }
-                // else if (seq[0] == 'O') {
-                //         switch(seq[1]){
-                            
-                //         }
-                // }
                  break;
              default:
                  return c;
@@ -273,34 +272,54 @@ struct Point{
 void move_cursor(struct Point *p ,int dx,int dy){
     p->x += dx;
     p->y += dy;
+    if(p->x < 1)p->x = 1;
+    if(p->y < 1)p->y = 1;
     char seq[32];
     snprintf(seq, sizeof(seq), "\x1b[%d;%dH", p->y,p->x);
     write(STDOUT_FILENO, seq, strlen(seq));
 }
 
-// flush_to_rope(rope_node **node,char buff){
 
-// }
 
 void insert_to_buff(char buff[],const char c,unsigned long long buff_count){
     buff[buff_count] =  c;
 }
 
+void write_editor(unsigned char c,size_t *buff_count,char buff[],rope_node **root,struct Point *p){
+    
+     static unsigned char ct[5];
+     static int count = 0,expected = 0;
+     
+     if (count == 0) {
+        if (c < 0x80) expected = 1;
+        else if ((c & 0xE0) == 0xC0) expected = 2;
+        else if ((c & 0xF0) == 0xE0) expected = 3;
+        else if ((c & 0xF8) == 0xF0) expected = 4;
+        else expected = 1; 
+     }
+
+     ct[count++] = c;
+     
+     if (count == expected) {
+         ct[count] = '\0';
+         rope_append(root, (const char *)ct);
+         write(STDOUT_FILENO,&ct , count);
+         if(count > 2)move_cursor(p, 2, 0);
+         else move_cursor(p, 1, 0);
+         count = 0;  
+     }
+}
+
 void init(){
     
-    struct winsize ws;
     Sequence s = empty();
     struct Point p = {1,1};
-    // static int cursor_index = 0;
     enable_raw_mode();
     clear_screen();
-    rope_node *node;
-    unsigned long long buff_count = 0;
+    size_t buff_count = 0;
     char buff[CHUNK_SIZE * 4] ;
     rope_node *root;
     root = NULL;
-    char b[20];
-    int len;
     while(1){
         int c = read_key(STDIN_FILENO);
         switch (c) {
@@ -320,47 +339,37 @@ void init(){
                 if(p.x < 1)p.x = 1;
                 move_cursor(&p, 1, 0); 
                  break;
+            case PAGE_UP:
+                break;
+            case PAGE_DOWN:
+                break;
             case ESC:
-                p.x = 0;
-                p.y++;
-                move_cursor(&p, 0,0);
-                printf("\n%d is column and %d is row",p.y,p.x);
-                get_window_size(&ws);
-                printf("\n%hu is row",ws.ws_row);
-                p.x = 0;
-                p.y++;
-                move_cursor(&p, 0,0);
-                if(buff_count != (CHUNK_SIZE * 4) - 1 ){
-                    rope_append(&root, buff);
-                }
-                
-                close_sequence(&s);
-                if(root == NULL){
-                    printf("root is null return\n");
-                    write_to_file("tender.txt", buff);
+                if(root == NULL && s.data != NULL){
+                    free(s.data);
                     return;
                     break;
-                };
-                                fflush(stdout);
-                char *stt;
+                }
+                unsigned char *stt;
                 stt = flatten_to_string(root);
-                
-                write_to_file("tender.txt", stt);
+                write_to_file("tender.txt", (char *)stt,strlen((char *)stt));
                 mem_for_special mem;
                 init_mem_f_s(&mem, 1);
                 free_ropes(root, &mem);
                 free_mem(&mem);
                 free(stt);
-                // sleep(5);
+                free(s.data);
                 return ;
                 break;
             case DEL:
+                break;
+            case HOME:
+                break;
+            case END:
+                break;
             case BACKSPACE:
 
                 if(p.x > 0){
                     move_cursor(&p, -1,0);
-                //write(STDOUT_FILENO, "\r\033[K", 4);
-                //delete_at(&s, p.x-1);
                     write(STDOUT_FILENO, "\b \b", 3);
                     char seq[32];
                     snprintf(seq, sizeof(seq), "\033[%d;%dH",p.y,p.x);
@@ -368,35 +377,22 @@ void init(){
                 
                  }   
                 break;
+            default:
+                write_editor(c, &buff_count, buff, &root, &p);
+                break;
         }
-        if (c >= 32 && c <= 126){
-            unsigned char ch = (unsigned char )c;
-            // insert(&s, p.x - 1, &ch);
-            if(buff_count == (CHUNK_SIZE * 4) - 1){
-                // printf("%llu\n",buff_count);
-                // buff[buff_count] = '\0';
-                rope_append(&root, buff);
-                buff_count = 0;
-            }
-            // buff_count = (buff_count < (CHUNK_SIZE * 4)) ?  buff_count:0;
-            insert_to_buff(buff, c, buff_count);
-            buff_count++;
-            buff[buff_count] = '\0';
-            write(STDOUT_FILENO, &c, sizeof(c));
-            move_cursor(&p, 1, 0);
-        }
+        
         if(c == 13){
-            unsigned char ch = (unsigned char )c;
-            if(buff_count == (CHUNK_SIZE * 4) - 1){
-                buff[buff_count] = '\0';
-                rope_append(&root, buff);
-                buff_count = 0;
-            }
-             // buff_count = (buff_count < (CHUcNK_SIZE * 4)) ? buff_count : 0;
-            insert_to_buff(buff, '\n', buff_count);
-            buff_count++;
-            buff[buff_count] = '\0';
-            write(STDOUT_FILENO,"\n" , 1);
+            rope_append(&root, "\n");
+            write(STDOUT_FILENO,"\r\n" , 2);
+            p.x = 1;
+            p.y += 1;
+            move_cursor(&p, 0, 0);
+         }
+
+         if(c == 10){
+            write_to_file("me.txt", "this is new line\n", strlen("this is new line\n"));
+            write(STDOUT_FILENO,"\r\n" , 2);
             p.x = 1;
             p.y += 1;
             move_cursor(&p, 0, 0);
