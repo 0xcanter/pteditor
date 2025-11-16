@@ -34,7 +34,7 @@ int main(){
       char *buf = malloc((CHUNK_SIZE * 4) + 1);
       memcpy(buf, str + i,len);
       buf[len] = '\0';
-      leaves[count++] = make_leaf_owned(buf, len);
+      leaves[count++] = make_leaf_owned((unsigned char*)buf, len);
   }
   free(str);
   // printf("hello %lu\n",count);
@@ -42,6 +42,7 @@ int main(){
   mem_for_special mem;
   init_mem_f_s(&mem, 1); 
   rope_node *root = build_balanced_rope(leaves, count);
+  printf("lines count %zu\n",lines(root->right));
   rope_node *del;
   delete_rope(root, 5000000, &root, 50000, &mem, &del);
   free(leaves);
@@ -50,6 +51,8 @@ int main(){
   rope_node *i;
   i = NULL;
   insert_rope(root, 1, "HELLO", &root, &mem);
+  substr(root, 1, 5, &i, &mem);
+  print_rope(i);
   // fast_substr(root, 1, 5, &uff, &mem);
   // print_rope(uff);
   end = clock();

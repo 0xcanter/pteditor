@@ -76,7 +76,6 @@ ReturnCode itemAt(Sequence *sequence,Position position,Item *out){
     return 1;
 }
 
-
 ReturnCode load_file(Sequence *sequence,const char *filename){
     FILE *f = fopen(filename, "r");
     if(!f){
