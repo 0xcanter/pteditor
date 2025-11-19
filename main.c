@@ -1,4 +1,5 @@
 #include "lib/rope.h"
+#include <stdatomic.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -307,6 +308,10 @@ void write_editor(unsigned char c,size_t *buff_count,char buff[],rope_node **roo
          else move_cursor(p, 1, 0);
          count = 0;  
      }
+}
+
+void editor_draw_status_bar(){
+    
 }
 
 void init(){

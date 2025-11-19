@@ -11,13 +11,13 @@ int main(){
   fseek(f,0,SEEK_END);
   size_t size = ftell(f);
   rewind(f);
-  char *str = malloc(size+1);
+  unsigned char *str = malloc(size+1);
   if(!str){
     perror("malloc failed");
     fclose(f);
   }
   long long fr = fread(str, 1, size, f);
-  // printf("%llu\n",fr);
+  printf("%llu\n",fr);
   str[size] = '\0';
   fclose(f);
   rope_node **leaves;
@@ -26,15 +26,18 @@ int main(){
   clock_t start,end;
   double cpu_time_used;
   for(size_t i = 0;i < size; i+=(CHUNK_SIZE * 4) ){
+      static int trails = 0;
       size_t len = (i + (CHUNK_SIZE *4) < size) ? (CHUNK_SIZE * 4) : size - i;
       if(count >= cap){
         cap = (cap == 0) ? 8 : cap * 2;
         leaves = realloc(leaves,sizeof(rope_node *) * cap);
       }
-      char *buf = malloc((CHUNK_SIZE * 4) + 1);
+      unsigned char *buf = malloc((CHUNK_SIZE * 4) + 1);
       memcpy(buf, str + i,len);
       buf[len] = '\0';
-      leaves[count++] = make_leaf_owned((unsigned char*)buf, len);
+      if(trails == 0)printf("%s\n",(char *)buf);
+      trails++;
+      leaves[count++] = make_leaf_owned(buf, len);
   }
   free(str);
   // printf("hello %lu\n",count);
@@ -42,25 +45,29 @@ int main(){
   mem_for_special mem;
   init_mem_f_s(&mem, 1); 
   rope_node *root = build_balanced_rope(leaves, count);
+  // print_rope(root);
   printf("lines count %zu\n",lines(root->right));
   rope_node *del;
   delete_rope(root, 5000000, &root, 50000, &mem, &del);
   free(leaves);
   // rope_node buff;
-  start = clock();
   rope_node *i;
   i = NULL;
-  insert_rope(root, 1, "HELLO", &root, &mem);
-  substr(root, 1, 5, &i, &mem);
-  print_rope(i);
-  // fast_substr(root, 1, 5, &uff, &mem);
-  // print_rope(uff);
-  end = clock();
+  // printf()
   if (is_balanced(root) == 0){
+      printf("not balanced rebalancint ...");
       rebalance(root, &root, &mem);
   }else{
     i = root;
   }
+  printf("length of node: %zu\n",root->weight);
+  start = clock();
+  insert_rope(root, 1, "HELLO", &root, &mem);
+  substr(root, 50000, 70000, &i, &mem);
+  // print_rope(i);
+  // fast_substr(root, 1, 5, &uff, &mem);
+  // print_rope(uff);
+  end = clock();
   printf("\n");
   cpu_time_used = ((double)(end-start)) / CLOCKS_PER_SEC;
   printf("time taken %f seconds",cpu_time_used);
@@ -69,7 +76,7 @@ int main(){
   free_ropes(del, &mem);
   free_ropes(root,&mem);
   free_mem(&mem);
-  char *t = "🥰";
+  // char *t = "🥰";
   // printf("string length is %zu\n",strlen(t));
   // free(str);
   return 0;
