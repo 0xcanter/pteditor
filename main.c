@@ -8,10 +8,36 @@
 #include <time.h>
 #include <unistd.h>
 #include <sys/ioctl.h>
+
 struct termios orig_termios;
 typedef int ReturnCode ;
 typedef int Position;
 typedef  unsigned char Item;
+
+typedef struct Point{
+    int x;
+    int y;
+    int px;
+    int py;
+}Point;
+
+typedef struct config{
+    char *filename;
+    int dirty;
+    mem_for_special mem;
+    rope_node *rope;
+    rope_node **paste_leaves;
+    size_t pcount;
+    int p;
+}config ;
+
+static config C;
+
+typedef struct buff_lines{
+    unsigned char *str;
+    int len;
+    int buffer_line; 
+}buff_lines;
 
 void get_window_size(struct winsize *ws){
     ioctl(STDOUT_FILENO, TIOCGWINSZ, ws);
@@ -182,6 +208,9 @@ void clear_screen(void) {
 
 void write_to_file(const char *filename,const char *buff,size_t byte){
     if(!buff)return;
+    if(!filename){
+        return;
+     }   
     FILE *file = fopen(filename, "w");
     if (!file){
         perror("could not open file");
@@ -194,6 +223,10 @@ void write_to_file(const char *filename,const char *buff,size_t byte){
 enum {
     BACKSPACE = 127,
     ESC = 27,
+    ENTER = 13,
+    PASTE = 200,
+    PASTE_END = 201,
+    TAB = 9,
     ARROW_LEFT = 1000,
     ARROW_UP,
     ARROW_RIGHT,
@@ -221,8 +254,18 @@ void get_cursor_position(int *rows,int *cols){
     }
 }
 
+int is_paste_end(char buff[],int size){
+    int i;
+    for(i = 0;i<size;i++){
+        if(buff[i] == ESC){
+            return i;
+        }
+    }
+    return -1;
+}
+
 int read_key(int fd){
-    char c,seq[3];
+    char c,seq[7];
     int nread;
     while((nread = read(fd,&c,1)) == 0);
     if (nread == -1)exit(1);
@@ -235,6 +278,49 @@ int read_key(int fd){
                 if(seq[0] == '['){
                     if(seq[1] >= '0' && seq[1] <= '9'){
                         if(read(fd,seq+2,1) == 0) return ESC;
+                        if(seq[2] == '0'){
+                            if(read(fd,seq+3,1) == 0)return ESC;
+                            if(read(fd,seq+4,1) == 0)return ESC;
+                            if(seq[4] == '~'){
+                                char buff[4096];
+                                int nread;
+                                size_t cap = 8;
+                                C.pcount = 0;
+                                C.paste_leaves = malloc(sizeof(rope_node*) * cap);
+                                C.p = 0;
+                                switch(seq[3]){
+                                    case '0':
+                                        while(1){
+                                            if((nread = read(fd,buff,sizeof(buff) - 1)) == 0){
+                                                C.p = 0;
+                                            }
+                                            int count = is_paste_end(buff, nread);
+                                            if(count >= 0){
+                                                buff[count] = '\0';
+                                                if(C.pcount >= cap){
+                                                    cap *= 2;
+                                                    C.paste_leaves = realloc(C.paste_leaves, sizeof(rope_node*) * cap);
+                                                }
+                                                C.paste_leaves[C.pcount++] = make_leaf_paste(buff, count );
+                                                return PASTE_END;
+                                            }else{
+
+                                                if(C.pcount >= cap){
+                                                    buff[nread] = '\0';
+                                                    cap *= 2;
+                                                    C.paste_leaves = realloc(C.paste_leaves, sizeof(rope_node*) * cap);
+                                                }
+                                                C.paste_leaves[C.pcount++] = make_leaf_paste(buff, nread);
+                                                
+                                            }
+                                            
+                                                
+                                            
+                                       }
+                                        break;
+                                }
+                            }
+                        }
                         if(seq[2] == '~'){
                             switch(seq[1]){
                                 case '3': return DEL;
@@ -264,10 +350,6 @@ int read_key(int fd){
 }    
 
 
-struct Point{
-    int x;
-    int y;
-};
 
 void move_cursor(struct Point *p ,int dx,int dy){
     p->x += dx;
@@ -281,11 +363,39 @@ void move_cursor(struct Point *p ,int dx,int dy){
 
 
 
-void insert_to_buff(char buff[],const char c,unsigned long long buff_count){
+void insert_to_buff(unsigned char buff[],unsigned char c,size_t buff_count){
     buff[buff_count] =  c;
 }
 
-void write_editor(unsigned char c,size_t *buff_count,char buff[],rope_node **root,struct Point *p){
+void render_lines(){
+    
+}
+
+void editor_draw_status_bar(struct Point *p){
+    int x,y;
+    struct winsize ws;
+    get_window_size(&ws);
+    y = ws.ws_row - 1;
+    x = ws.ws_col;
+    write(STDOUT_FILENO,"\x1b[?25l",6);
+    write(STDOUT_FILENO,"\x1b[s",3);
+    p->px = p->x;
+    p->py = p->y;
+    p->y = 0;
+    move_cursor(p, 0, y);
+    write(STDOUT_FILENO,"\033[2K\r",5);
+    char buf[50];
+    int size = snprintf(buf, sizeof(buf), "\x1b[47m\x1b[KThis whole line %d:%d is white!\x1b[0m", p->py,p->px);
+    write(STDOUT_FILENO,buf,size);
+    write(STDOUT_FILENO,"\x1b[u",3);
+    write(STDOUT_FILENO,"\x1b[?25h",6);
+    p->x = p->px;
+    p->y = p->py;
+    move_cursor(p, 0, 0);
+    // p->y = 0;
+}
+
+void write_editor(unsigned char c,size_t *buff_count,unsigned char buff[],rope_node **root,struct Point *p){
     
      static unsigned char ct[5];
      static int count = 0,expected = 0;
@@ -297,69 +407,129 @@ void write_editor(unsigned char c,size_t *buff_count,char buff[],rope_node **roo
         else if ((c & 0xF8) == 0xF0) expected = 4;
         else expected = 1; 
      }
-
      ct[count++] = c;
      
      if (count == expected) {
          ct[count] = '\0';
-         rope_append(root, (const char *)ct);
-         write(STDOUT_FILENO,&ct , count);
-         if(count > 2)move_cursor(p, 2, 0);
+         if (*buff_count >= (CHUNK_SIZE * 4 - 1)) {
+           rope_append(root,(const char *)buff);
+           *buff_count = 0;
+         }
+         write(STDOUT_FILENO,ct ,count);
+         if(count == expected){
+             for(size_t i = 0;i < count;i++){
+                 if(ct[i] == '\0')break;
+                 insert_to_buff(buff, ct[i], *buff_count);
+                 *buff_count += 1;
+                 buff[*buff_count] = '\0';
+             }
+         }else{
+                 insert_to_buff(buff, c, *buff_count);
+                 *buff_count += 1;
+                 buff[*buff_count] = '\0';
+         }
+         if(count > 2)move_cursor(p, 1, 0);
          else move_cursor(p, 1, 0);
+         if(C.p == 1)
+             editor_draw_status_bar(p);
          count = 0;  
      }
 }
 
-void editor_draw_status_bar(){
-    
-}
 
-void init(){
+void init(Point *p){
     
     Sequence s = empty();
-    struct Point p = {1,1};
     enable_raw_mode();
     clear_screen();
+    write(STDOUT_FILENO,"\x1b[?2004h",8);
     size_t buff_count = 0;
-    char buff[CHUNK_SIZE * 4] ;
-    rope_node *root;
-    root = NULL;
+    unsigned char buff[CHUNK_SIZE * 4] ;
+    editor_draw_status_bar(p);
+    if(C.filename && C.rope != NULL){
+        int line = lines(C.rope);
+        if(line == 0){
+            
+            unsigned char *t = flatten_to_string(C.rope);
+            write(STDOUT_FILENO,(char*)t,strlen((char*)t));
+            move_cursor(p, strlen((char *)t),0);
+            free(t);
+            editor_draw_status_bar(p);
+            
+        }else{
+            int i = line - 30;
+            for(;i<= line;i++){
+            
+                rope_node *d;
+                d = NULL;
+                rope_slice(C.rope, i, 1, &C.mem, &d);
+                unsigned char *t = flatten_to_string(d);
+                write(STDOUT_FILENO,(char*)t,strlen((char*)t));
+                free(t);
+                p->x = 1;
+                move_cursor(p, 0, 1);
+                editor_draw_status_bar(p);
+            }
+            
+        }
+    }
+    
     while(1){
         int c = read_key(STDIN_FILENO);
+        // editor_draw_status_bar(&p);
         switch (c) {
+            case ENTER:
+                
+                if(buff_count >= (CHUNK_SIZE * 4 - 1)){
+                    rope_append(&C.rope, (const char *)buff);
+                    buff_count = 0;
+                }
+                insert_to_buff(buff, '\n', buff_count);
+                buff_count++;
+                buff[buff_count] = '\0';
+                // write(STDOUT_FILENO,"\n",1);
+                p->x = 1;
+                p->y += 1;
+                move_cursor(p, 0, 0);
+                editor_draw_status_bar(p);
+                break;
             case ARROW_DOWN:
-                if(p.y < 1)p.y = 1;
-                move_cursor(&p,0 , 1);
+                if(p->y < 1)p->y = 1;
+                move_cursor(p,0 , 1);
+                editor_draw_status_bar(p);
                 break;
             case ARROW_UP:
-                if(p.y < 1)p.y = 1;
-                move_cursor(&p, 0, -1);
+                if(p->y < 1)p->y = 1;
+                move_cursor(p, 0, -1);
+                editor_draw_status_bar(p);
                 break;
             case ARROW_LEFT:
-                if(p.x < 1)p.x = 1;
-                move_cursor(&p, -1, 0);
+                if(p->x < 1)p->x = 1;
+                move_cursor(p, -1, 0);
+                editor_draw_status_bar(p);
                 break;
             case ARROW_RIGHT:
-                if(p.x < 1)p.x = 1;
-                move_cursor(&p, 1, 0); 
+                if(p->x < 1)p->x = 1;
+                move_cursor(p, 1, 0); 
+                editor_draw_status_bar(p);
                  break;
             case PAGE_UP:
                 break;
             case PAGE_DOWN:
                 break;
             case ESC:
-                if(root == NULL && s.data != NULL){
+                if((CHUNK_SIZE * 4 - 1) >= buff_count)rope_append(&C.rope, (const char *)buff);
+                if(C.rope == NULL && s.data != NULL){
+                    sleep(3);
                     free(s.data);
                     return;
                     break;
                 }
                 unsigned char *stt;
-                stt = flatten_to_string(root);
-                write_to_file("tender.txt", (char *)stt,strlen((char *)stt));
-                mem_for_special mem;
-                init_mem_f_s(&mem, 1);
-                free_ropes(root, &mem);
-                free_mem(&mem);
+                stt = flatten_to_string(C.rope);
+                write_to_file(C.filename, (const char*)stt,strlen((const char *)stt));
+                free_ropes(C.rope, &C.mem);
+                free_mem(&C.mem);
                 free(stt);
                 free(s.data);
                 return ;
@@ -370,41 +540,124 @@ void init(){
                 break;
             case END:
                 break;
+            case PASTE_END:
+                C.p = 1;
+                p->x = 1;
+                // move_cursor(p, 0, 0);
+                if(C.paste_leaves != NULL){
+                    
+                    C.rope = build_balanced_rope(C.paste_leaves, C.pcount);
+                    C.pcount = 0;
+                    free(C.paste_leaves);
+                    C.paste_leaves = NULL;
+                    size_t n = lines(C.rope);
+                    size_t i = n > 38 ? n-38:0;
+
+                    for(;i<n;i++){
+                        rope_node *t;
+                        t = NULL;
+                        rope_slice(C.rope, i,1, &C.mem, &t);
+                        unsigned char *d = flatten_to_string(t);
+                        write(STDOUT_FILENO,(char *)d,strlen((char *)d));
+                        free(d);
+                        // free(t);
+                        // p->x = 1;
+                        move_cursor(p, 0, 1);
+                        editor_draw_status_bar(p);
+                    }
+                    
+                }
+                break;
+            case 10:
+                
+                if(buff_count >= (CHUNK_SIZE * 4 - 1)){
+                    rope_append(&C.rope, (const char *)buff);
+                    buff_count = 0;
+                }
+                insert_to_buff(buff, '\n', buff_count);
+                buff_count++;
+                buff[buff_count] = '\0';
+                p->x = 1;
+                p->y += 1;
+                move_cursor(p, 0, 0);
+                editor_draw_status_bar(p);
+                break;
             case BACKSPACE:
 
-                if(p.x > 0){
-                    move_cursor(&p, -1,0);
-                    write(STDOUT_FILENO, "\b \b", 3);
+                if(p->x > 0){
+                    write(STDOUT_FILENO, "\b ", 3);
+                    move_cursor(p, -1,0);
                     char seq[32];
-                    snprintf(seq, sizeof(seq), "\033[%d;%dH",p.y,p.x);
+                    snprintf(seq, sizeof(seq), "\033[%d;%dH",p->y,p->x);
                     write(STDOUT_FILENO, seq, 7);
-                
                  }   
                 break;
             default:
-                write_editor(c, &buff_count, buff, &root, &p);
+                write_editor(c, &buff_count, buff, &C.rope, p);
                 break;
         }
         
-        if(c == 13){
-            rope_append(&root, "\n");
-            write(STDOUT_FILENO,"\r\n" , 2);
-            p.x = 1;
-            p.y += 1;
-            move_cursor(&p, 0, 0);
-         }
-
-         if(c == 10){
-            write_to_file("me.txt", "this is new line\n", strlen("this is new line\n"));
-            write(STDOUT_FILENO,"\r\n" , 2);
-            p.x = 1;
-            p.y += 1;
-            move_cursor(&p, 0, 0);
-         }
     }
 }
 
-int main(void){
-    init();
+void open_file(char *filename){
+    
+}
+void openfile(FILE *f){
+        
+  
+  
+  fseek(f,0,SEEK_END);
+  size_t size = ftell(f);
+  rewind(f);
+  unsigned char *str = malloc(size+1);
+  if(!str){
+    perror("malloc failed");
+    fclose(f);
+  }
+  long long fr = fread(str, 1, size, f);
+  str[size] = '\0';
+  fclose(f);
+  rope_node **leaves;
+  leaves = NULL;
+  long cap = 0,count = 0;
+  clock_t start,end;
+  double cpu_time_used;
+  for(size_t i = 0;i < size; i+=(CHUNK_SIZE * 4) ){
+      static int trails = 0;
+      size_t len = (i + (CHUNK_SIZE *4) < size) ? (CHUNK_SIZE * 4) : size - i;
+      if(count >= cap){
+        cap = (cap == 0) ? 8 : cap * 2;
+        leaves = realloc(leaves,sizeof(rope_node *) * cap);
+      }
+      unsigned char *buf = malloc((CHUNK_SIZE * 4) + 1);
+      memcpy(buf, str + i,len);
+      buf[len] = '\0';
+      trails++;
+      leaves[count++] = make_leaf_owned(buf, len);
+  }
+  free(str);
+  C.rope = build_balanced_rope(leaves, count);
+  free(leaves);
+}
+
+int main(int argc,char **argv){
+    if(argc > 2){
+            fprintf(stderr,"Usage: ptex <filename> OR ptex\n");
+            exit(1);
+     }
+    
+    Point p = {1,1};
+    C.filename = argv[1];
+    C.rope = NULL;
+    init_mem_f_s(&C.mem, 1);
+    FILE *f = fopen(C.filename, "r");
+    if(f){
+        openfile(f);
+        // return 0;
+    }
+    
+    init(&p);
     return 0;
 }
+

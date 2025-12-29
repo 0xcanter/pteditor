@@ -35,7 +35,8 @@ int main(){
       unsigned char *buf = malloc((CHUNK_SIZE * 4) + 1);
       memcpy(buf, str + i,len);
       buf[len] = '\0';
-      if(trails == 0)printf("%s\n",(char *)buf);
+      // if(trails == 0)printf("%s\n",(char *)buf);
+      // printf("first: %zu",strlen((char *)buf));
       trails++;
       leaves[count++] = make_leaf_owned(buf, len);
   }
@@ -47,37 +48,44 @@ int main(){
   rope_node *root = build_balanced_rope(leaves, count);
   // print_rope(root);
   printf("lines count %zu\n",lines(root->right));
-  rope_node *del;
-  delete_rope(root, 5000000, &root, 50000, &mem, &del);
+  // rope_node *del;
+  // delete_rope(root, 5-100000, &root, 50000, &mem, &del);
   free(leaves);
-  // rope_node buff;
-  rope_node *i;
-  i = NULL;
-  // printf()
-  if (is_balanced(root) == 0){
-      printf("not balanced rebalancint ...");
-      rebalance(root, &root, &mem);
-  }else{
-    i = root;
-  }
+  rope_node *buff;
   printf("length of node: %zu\n",root->weight);
   start = clock();
-  insert_rope(root, 1, "HELLO", &root, &mem);
-  substr(root, 50000, 70000, &i, &mem);
+  // insert_rope(root, 1, "HELLO", &root, &mem);
+ // substr(root, 50000, 70000, &buff, &mem);
+  // size_t y = find_start(root, 50);
+  // printf("this is y: %zu\n",y);
+  // const unsigned char *t = find_char_rope(root, 11);
+  // printf("your character is : %s\n",t);
+  // const unsigned char *e = find_char_rope(root, 12);
+  // printf("your character is : %s\n",e);
+  // const unsigned char *m = find_char_rope(root, 13);
+  // printf("your character is : %s\n",m);
+  // const unsigned char *p = find_char_rope(root, 14);
+  // printf("your character is : %s\n",p);
+  // const unsigned char *l = find_char_rope(root, 15);
+  // printf("your character is : %s\n",l);
   // print_rope(i);
   // fast_substr(root, 1, 5, &uff, &mem);
-  // print_rope(uff);
+  rope_slice(root, 0, 4,&mem,&buff);
+  print_rope(buff);
+  // rope_node *g = find_leaf(root, length(root) - 10);
+  // printf("this is the size of the last leaf: %zu",strlen((char *)g->str));
   end = clock();
   printf("\n");
   cpu_time_used = ((double)(end-start)) / CLOCKS_PER_SEC;
-  printf("time taken %f seconds",cpu_time_used);
+  printf("time taken %f seconds\n",cpu_time_used);
   // free_ropes(uff,&mem);
   // free_internal(root, &mem);
-  free_ropes(del, &mem);
+  // free_ropes(del, &mem);
   free_ropes(root,&mem);
   free_mem(&mem);
   // char *t = "🥰";
   // printf("string length is %zu\n",strlen(t));
   // free(str);
+  printf("size is %zu\n",sizeof(rope_node*));
   return 0;
 }
